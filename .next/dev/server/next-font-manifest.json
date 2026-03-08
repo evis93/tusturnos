@@ -1,0 +1,31 @@
+{
+  "app": {
+    "[project]/Desktop/03.MENSANA/mensana-next/app/admin/agenda-mensual/page": [
+      "static/media/a343f882a40d2cc9-s.p.71e1367e.woff2"
+    ],
+    "[project]/Desktop/03.MENSANA/mensana-next/app/admin/agenda/page": [
+      "static/media/a343f882a40d2cc9-s.p.71e1367e.woff2"
+    ],
+    "[project]/Desktop/03.MENSANA/mensana-next/app/admin/gestion-reservas/page": [
+      "static/media/a343f882a40d2cc9-s.p.71e1367e.woff2"
+    ],
+    "[project]/Desktop/03.MENSANA/mensana-next/app/admin/horarios/page": [
+      "static/media/a343f882a40d2cc9-s.p.71e1367e.woff2"
+    ],
+    "[project]/Desktop/03.MENSANA/mensana-next/app/admin/page": [
+      "static/media/a343f882a40d2cc9-s.p.71e1367e.woff2"
+    ],
+    "[project]/Desktop/03.MENSANA/mensana-next/app/admin/profesionales/page": [
+      "static/media/a343f882a40d2cc9-s.p.71e1367e.woff2"
+    ],
+    "[project]/Desktop/03.MENSANA/mensana-next/app/admin/reportes/page": [
+      "static/media/a343f882a40d2cc9-s.p.71e1367e.woff2"
+    ],
+    "[project]/Desktop/03.MENSANA/mensana-next/app/admin/servicios/page": [
+      "static/media/a343f882a40d2cc9-s.p.71e1367e.woff2"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}

@@ -1,0 +1,45 @@
+[00:00:03.465] Server  LOG     ✓ Ready in 2.6s
+[00:00:09.033] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:37.972] Server  LOG     ✓ Compiled in 292ms
+[00:02:26.591] Server  LOG     ✓ Compiled in 161ms
+[00:02:34.289] Server  LOG     ✓ Compiled in 637ms
+[00:02:37.938] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:02:42.222] Server  LOG     ✓ Compiled in 215ms
+[00:02:45.628] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:08:42.441] Server  LOG     ✓ Compiled in 592ms
+[00:08:51.681] Server  LOG     ✓ Compiled in 165ms
+[00:08:58.658] Server  LOG     ✓ Compiled in 241ms
+[00:09:07.748] Server  LOG     ✓ Compiled in 416ms
+[00:09:14.379] Server  LOG     ✓ Compiled in 258ms
+[00:13:55.033] Server  LOG     ✓ Compiled in 190ms
+[00:14:04.282] Server  LOG     ✓ Compiled in 137ms
+[00:14:14.856] Server  LOG     ✓ Compiled in 274ms
+[00:14:22.226] Server  LOG     ✓ Compiled in 141ms
+[00:14:32.217] Server  LOG     ✓ Compiled in 188ms
+[00:18:26.430] Server  LOG     ✓ Compiled in 181ms
+[00:19:08.517] Server  LOG     ✓ Compiled in 290ms
+[00:19:21.521] Server  LOG     ✓ Compiled in 428ms
+[00:23:51.195] Server  LOG     ✓ Compiled in 166ms
+[00:24:20.678] Browser ERROR   [buscarConsultantes] Error: {"code":"PGRST100","details":"unexpected \"m\" expecting \"not\" or operator (eq, gt, ...)","hint":null,"message":"\"failed to parse logic tree ((usuarios.nombre_completo.ilike.%eva%,usuarios.email.ilike.%eva%))\" (line 1, column 13)"}
+[00:25:26.326] Server  LOG     ✓ Compiled in 283ms
+[00:25:32.525] Server  LOG     ✓ Compiled in 142ms
+[00:25:38.466] Server  LOG     ✓ Compiled in 140ms
+[00:28:20.262] Server  LOG     ✓ Compiled in 741ms
+[01:56:17.496] Server  LOG     ✓ Compiled in 457ms
+[01:56:23.881] Server  LOG     ✓ Compiled in 435ms
+[01:56:36.708] Server  LOG     ✓ Compiled in 187ms
+[01:56:56.915] Server  LOG     ✓ Compiled in 324ms
+[01:58:18.228] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[02:01:25.052] Server  LOG     ✓ Compiled in 221ms
+[02:02:17.581] Server  LOG     ✓ Compiled in 166ms
+[02:02:18.936] Browser ERROR   uncaughtError: ReferenceError: Wrench is not defined
+[02:02:22.620] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[02:02:22.649] Server  LOG     ✓ Compiled in 249ms
+[02:02:26.528] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[02:02:30.157] Server  LOG     ✓ Compiled in 379ms
+[02:02:31.490] Server  ERROR   ⨯ ReferenceError: Wrench is not defined
+[02:02:34.290] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[02:02:35.392] Server  LOG     ✓ Compiled in 662ms
+[02:02:35.467] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./Desktop/03.MENSANA/mensana-next/src/components/layout/Sidebar.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[02:02:36.549] Browser ERROR   uncaughtError: ReferenceError: Wrench is not defined
+[02:02:39.346] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
