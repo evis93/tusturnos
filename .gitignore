@@ -53,4 +53,4 @@ nul
 
 # Environment variables
 .env*
-
+.env.local

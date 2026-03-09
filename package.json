@@ -15,5 +15,6 @@
   },
   "devDependencies": {
     "typescript": "5.9.3"
-  }
+  },
+  "next": "^12.3.4"
 }
