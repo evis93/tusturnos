@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * /offline — Página fallback del Service Worker.
  * Se muestra cuando el usuario no tiene conexión y la página no está cacheada.
