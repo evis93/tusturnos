@@ -65,8 +65,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         supabase.from('v_sesion_contexto').select('*')
       );
 
-      if (error || !filas || filas.length === 0) {
+      if (error) {
         console.error('[AuthContext] Error fetching v_sesion_contexto:', error);
+        setLoading(false);
+        return;
+      }
+
+      // Sin filas: puede ser usuario recién creado — reintentar una vez con delay
+      if (!filas || filas.length === 0) {
+        if (retry) {
+          fetchingProfile.current = false;
+          await new Promise(r => setTimeout(r, 2000));
+          return fetchProfile(authUserId, { retry: false });
+        }
         setLoading(false);
         return;
       }

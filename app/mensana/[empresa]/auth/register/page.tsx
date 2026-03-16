@@ -36,7 +36,16 @@ export default function EmpresaRegisterPage() {
 
     setLoading(true);
     const result = await register(email, password, nombre);
+
     if ((result as any).success) {
+      const userId = (result as any).data?.user?.id;
+      if (userId) {
+        await fetch('/api/auth/register-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, nombre, empresaSlug: slug }),
+        });
+      }
       setExito(true);
     } else {
       setError((result as any).error?.message || 'Error al crear la cuenta');

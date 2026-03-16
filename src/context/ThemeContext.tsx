@@ -104,6 +104,18 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   //   3. businessBranding (QR/localStorage, fallback legacy)
   //   4. Defaults de Mensana
   const value = useMemo<ThemeContextType>(() => {
+    // Tenant server-side primero: ya está resuelto antes de que auth cargue.
+    // Evita el flash de colores de Mensana durante authLoading.
+    if (tenant && !profile?.empresaId) {
+      return {
+        themeId: `tenant-${tenant.id}`,
+        colors: buildColors(tenant.colors.primary, tenant.colors.secondary, tenant.colors.background),
+        logoUrl: resolveLogoUrl(tenant.nombre, tenant.logo_url),
+        empresaNombre: tenant.nombre || null,
+        loading: authLoading, // auth puede seguir cargando, pero ya se muestran los colores correctos
+      };
+    }
+
     if (authLoading) {
       return { themeId: 'loading', colors: DEFAULT_COLORS, logoUrl: null, empresaNombre: null, loading: true };
     }
@@ -117,17 +129,6 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
         colors: buildColors(primary, secondary, background),
         logoUrl: resolveLogoUrl(profile.empresaNombre, profile.logoUrl),
         empresaNombre: profile.empresaNombre || null,
-        loading: false,
-      };
-    }
-
-    // Tenant resuelto server-side (ResolvedTenant usa .colors.primary etc.)
-    if (tenant) {
-      return {
-        themeId: `tenant-${tenant.id}`,
-        colors: buildColors(tenant.colors.primary, tenant.colors.secondary, tenant.colors.background),
-        logoUrl: resolveLogoUrl(tenant.nombre, tenant.logo_url),
-        empresaNombre: tenant.nombre || null,
         loading: false,
       };
     }

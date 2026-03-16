@@ -23,8 +23,8 @@ export default function EmpresaLoginPage() {
   useEffect(() => {
     if (!session || !profile) return;
     switch (profile.rol) {
-      case 'admin': case 'superadmin': router.replace('/admin'); break;
-      case 'profesional': router.replace('/profesional'); break;
+      case 'admin': case 'superadmin': router.replace('/admin/agenda'); break;
+      case 'profesional': router.replace('/profesional/agenda'); break;
       case 'cliente': router.replace('/cliente'); break;
     }
   }, [session, profile, router]);
@@ -125,7 +125,7 @@ export default function EmpresaLoginPage() {
           {/* Olvidé contraseña */}
           <div className="flex justify-center py-2">
             <Link
-              href="/auth/recuperar-contrasena"
+              href={`/mensana/${slug}/auth/recuperar-contrasena`}
               className="text-sm font-semibold hover:underline underline-offset-4 decoration-2"
               style={{ color: colors.primary }}
             >

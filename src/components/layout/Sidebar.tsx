@@ -17,6 +17,7 @@ import {
   Home,
   LogOut,
   LayoutDashboard,
+  KeyRound,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -141,6 +142,13 @@ export default function Sidebar() {
             </p>
           </div>
         </div>
+        <Link
+          href="/cuenta/cambiar-contrasena"
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors"
+        >
+          <KeyRound size={16} />
+          Cambiar contraseña
+        </Link>
         <button
           onClick={logout}
           className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"

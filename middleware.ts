@@ -23,6 +23,7 @@ const BYPASS_PREFIXES = [
   '/icon.png',
   '/sw.js',
   '/manifest.webmanifest',
+  '/cuenta',
 ];
 
 function shouldBypass(pathname: string): boolean {
