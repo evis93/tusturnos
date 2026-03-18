@@ -23,7 +23,7 @@ export default function RecuperarContrasenaPage() {
     setLoading(true);
 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/auth/actualizar-contrasena`,
+      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
     });
 
     setLoading(false);
