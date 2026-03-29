@@ -332,3 +332,16 @@ SELECT
 FROM public.fichas f
 JOIN public.usuarios p ON p.id = f.profesional_id
 ORDER BY f.fecha DESC;
+
+-- ============================================================
+-- 10. Grants para roles de Supabase
+-- ============================================================
+GRANT ALL ON public.horarios_empresa             TO service_role, authenticated;
+GRANT ALL ON public.disponibilidad_profesional   TO service_role, authenticated;
+GRANT ALL ON public.reservas                     TO service_role, authenticated;
+GRANT ALL ON public.fichas                       TO service_role, authenticated;
+GRANT ALL ON public.notificaciones_pendientes    TO service_role, authenticated;
+
+GRANT SELECT ON public.horarios_empresa           TO anon;
+GRANT SELECT ON public.v_reservas_detalle         TO service_role, authenticated;
+GRANT SELECT ON public.v_fichas_cliente           TO service_role, authenticated;

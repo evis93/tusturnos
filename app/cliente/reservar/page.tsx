@@ -92,7 +92,7 @@ export default function ReservarPage() {
       const fechaStr = fechaISO(diaSeleccionado);
 
       const [resHorarios, resOcupados] = await Promise.all([
-        (ReservaClienteController as any).obtenerHorariosDelDia(profId, diaSemana),
+        (ReservaClienteController as any).obtenerHorariosDelDia(profId, diaSemana, profile?.empresaId),
         (ReservaClienteController as any).obtenerSlotsOcupados(profId, fechaStr),
       ]);
 

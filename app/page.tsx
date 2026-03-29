@@ -29,26 +29,24 @@ export default function HomePage() {
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-blue-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#3498db,#2980b9)' }}>
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-              </svg>
+            <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-white border border-blue-100">
+              <img src="/images/logoMensana.png" alt="Logo Mensana" className="object-contain w-8 h-8" />
             </div>
             <span className="text-2xl font-bold text-slate-800" style={{ letterSpacing: '-0.02em' }}>mensana</span>
           </div>
 
           <div className="hidden md:flex items-center space-x-8">
-            {['inicio', 'novedades', 'profesionales', 'centros'].map(item => (
+            {['inicio', 'novedades', 'eventos', 'mensana viajes'].map(item => (
               <a key={item} href="#" className="text-slate-600 hover:text-blue-500 transition text-[0.95rem]">{item}</a>
             ))}
           </div>
 
           <div className="flex items-center space-x-3">
-            <Link href="/auth/login" className="px-5 py-2 text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition text-sm font-medium">
-              iniciar sesión
-            </Link>
             <Link href="/auth/register" className="px-5 py-2 text-white rounded-xl shadow-lg shadow-blue-100 hover:opacity-90 transition text-sm font-semibold" style={{ background: 'linear-gradient(135deg,#3498db,#2980b9)' }}>
-              comenzar gratis
+              ingreso comunidad
+            </Link>
+            <Link href="/auth/login" className="px-5 py-2 text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition text-sm font-medium">
+              ingreso profesional
             </Link>
           </div>
         </div>
@@ -67,7 +65,7 @@ export default function HomePage() {
                 comienza aquí
               </h1>
               <p className="text-lg text-gray-500 max-w-lg leading-relaxed">
-                conecta con los mejores profesionales y centros de salud mental y física cerca de ti. una plataforma diseñada para tu calma y crecimiento personal.
+                Un lugar donde todo se conecta. Unimos nuestra experiencia y las recomendaciones de nuestra comunidad para acercarte a los especialistas mejor calificados. Un espacio creado para que sea tu refugio de calma y el motor para sentirte bien, por dentro y por fuera.
               </p>
               <div className="flex items-center space-x-4">
                 <Link href="/auth/register" className="px-8 py-4 text-white rounded-xl text-lg shadow-xl shadow-blue-200 hover:scale-[1.02] transition-transform font-bold" style={{ background: 'linear-gradient(135deg,#3498db,#2980b9)' }}>
@@ -179,10 +177,8 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
           <div>
             <div className="flex items-center space-x-2 mb-6">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#3498db,#2980b9)' }}>
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                </svg>
+              <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-white border border-blue-100">
+                <img src="/images/logoMensana.png" alt="Logo Mensana" className="object-contain w-8 h-8" />
               </div>
               <span className="text-2xl font-bold text-slate-800">mensana</span>
             </div>

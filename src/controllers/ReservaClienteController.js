@@ -78,7 +78,8 @@ export class ReservaClienteController {
   }
 
   // Horarios del profesional para un día de semana (0=Dom, 1=Lun … 6=Sab)
-  static async obtenerHorariosDelDia(profesionalId, diaSemana) {
+  // Si el profesional no tiene horarios propios, usa los horarios base de la empresa.
+  static async obtenerHorariosDelDia(profesionalId, diaSemana, empresaId = null) {
     try {
       const { data, error } = await supabase
         .from('horarios_atencion')
@@ -88,7 +89,26 @@ export class ReservaClienteController {
         .eq('activo', true);
 
       if (error) throw error;
-      return { success: true, data: data || [] };
+
+      if (data && data.length > 0) {
+        return { success: true, data };
+      }
+
+      // Fallback: horario base de la empresa
+      if (empresaId) {
+        const { data: dataEmpresa, error: errorEmpresa } = await supabase
+          .from('horarios_empresa')
+          .select('hora_inicio, hora_fin')
+          .eq('empresa_id', empresaId)
+          .eq('dia_semana', diaSemana)
+          .eq('activo', true);
+
+        if (!errorEmpresa && dataEmpresa && dataEmpresa.length > 0) {
+          return { success: true, data: dataEmpresa };
+        }
+      }
+
+      return { success: true, data: [] };
     } catch (error) {
       console.error('[ReservaClienteController.obtenerHorariosDelDia]', error);
       return { success: false, error: error.message };

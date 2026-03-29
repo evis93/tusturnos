@@ -44,12 +44,21 @@ export class ReservaModel {
     this.created_at = data.created_at || null;
   }
 
-  // Validaciones
+  // Validaciones para crear/actualizar (campos mínimos del turno)
   isValid() {
     return (
       this.cliente_id !== null &&
       this.fecha !== '' &&
       this.hora_inicio !== ''
+    );
+  }
+
+  // Validación estricta para creación: requiere empresa y profesional
+  isValidForCreate() {
+    return (
+      this.isValid() &&
+      this.empresa_id !== null &&
+      this.profesional_id !== null
     );
   }
 

@@ -40,6 +40,8 @@ export class ReservaController {
   }
 
   // Helper: obtener profesional IDs de la empresa del profile
+  // Retorna null para superadmin (sin filtro), array de IDs para el resto.
+  // Array vacío significa que la empresa no tiene staff con rol admin/profesional en usuario_empresa.
   static async obtenerProfesionalIdsEmpresa(profile) {
     if (profile.rol === 'superadmin') return null; // null = sin filtro
 
@@ -49,7 +51,15 @@ export class ReservaController {
       .eq('empresa_id', profile.empresaId)
       .in('roles.nombre', ['profesional', 'admin']);
 
-    return (usuarioEmpresa || []).map(r => r.usuario_id);
+    const ids = (usuarioEmpresa || []).map(r => r.usuario_id);
+
+    if (ids.length === 0) {
+      console.warn(
+        `[ReservaController] La empresa ${profile.empresaId} no tiene profesionales ni admins en usuario_empresa`
+      );
+    }
+
+    return ids;
   }
 
   // Obtener reservas por fecha con datos del consultante
@@ -71,7 +81,7 @@ export class ReservaController {
 
         const profIds = await this.obtenerProfesionalIdsEmpresa(profile);
         if (profIds && profIds.length === 0) {
-          return { success: true, data: [] };
+          return { success: true, data: [], warning: 'La empresa no tiene profesionales ni admins asignados' };
         }
         if (profIds) {
           query = query.in('profesional_id', profIds);
@@ -140,6 +150,9 @@ export class ReservaController {
     const permError = requirePermission(profile, 'reservas:write');
     if (permError) return permError;
 
+    const empError = requireEmpresa(profile);
+    if (empError) return empError;
+
     try {
       const reserva = new ReservaModel({
         ...reservaData,
@@ -149,7 +162,7 @@ export class ReservaController {
         empresa_id: profile.empresaId,
       });
 
-      if (!reserva.isValid()) {
+      if (!reserva.isValidForCreate()) {
         return {
           success: false,
           error: 'Complete los campos obligatorios (cliente, fecha, hora, tipo de sesión)',
@@ -241,7 +254,7 @@ export class ReservaController {
         if (empError) return empError;
 
         const profIds = await this.obtenerProfesionalIdsEmpresa(profile);
-        if (profIds && profIds.length === 0) return { success: true, data: [] };
+        if (profIds && profIds.length === 0) return { success: true, data: [], warning: 'La empresa no tiene profesionales ni admins asignados' };
         if (profIds) {
           query = query.in('profesional_id', profIds);
         }
