@@ -12,16 +12,19 @@ import type { HorarioDia, ExcepcionDisponibilidad } from '@/src/types/disponibil
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY no configurado')
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const profesionalId = searchParams.get('profesionalId')
-    const empresaId     = searchParams.get('empresaId')
-    const servicioId    = searchParams.get('servicioId')
+    const profesionalId = searchParams.get('profesionalId')?.trim()
+    const empresaId     = searchParams.get('empresaId')?.trim()
+    const servicioId    = searchParams.get('servicioId')?.trim()
     const fechaParam    = searchParams.get('fecha')  // "2026-03-28"
+    const duracionParam = searchParams.get('duracionMinutos')
+    const duracionFallback = duracionParam ? Number(duracionParam) : NaN
 
     if (!profesionalId || !empresaId || !servicioId || !fechaParam) {
       return NextResponse.json(
@@ -34,14 +37,38 @@ export async function GET(req: NextRequest) {
     const sb    = adminClient()
 
     // 1. Duración del servicio
+    let duracionServicio: number | null = null
     const { data: servicio, error: servicioError } = await sb
       .from('servicios')
       .select('duracion_minutos')
       .eq('id', servicioId)
-      .single()
+      .eq('empresa_id', empresaId)
+      .eq('activo', true)
+      .maybeSingle()
 
-    if (servicioError || !servicio) {
+    if (servicioError) {
+      const puedeUsarFallback = servicioError.message?.toLowerCase().includes('permission denied')
+        && Number.isFinite(duracionFallback)
+        && duracionFallback > 0
+
+      if (puedeUsarFallback) {
+        duracionServicio = duracionFallback
+      } else {
+      console.error('[api/disponibilidad GET][servicio query]', servicioError.message)
+      return NextResponse.json({ error: 'Error al consultar servicio' }, { status: 500 })
+      }
+    }
+
+    if (!duracionServicio && !servicio) {
       return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
+    }
+
+    if (!duracionServicio) {
+      duracionServicio = servicio?.duracion_minutos ?? null
+    }
+
+    if (!duracionServicio || duracionServicio <= 0) {
+      return NextResponse.json({ error: 'Duración de servicio inválida' }, { status: 400 })
     }
 
     // 2. Horario base de la empresa
@@ -101,7 +128,7 @@ export async function GET(req: NextRequest) {
       horarioBase,
       excepciones,
       reservasOcupadas,
-      servicio.duracion_minutos,
+      duracionServicio,
       fecha
     )
 

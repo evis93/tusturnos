@@ -1,0 +1,223 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.comentarios (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  empresa_id uuid,
+  usuario_id uuid,
+  contenido text NOT NULL,
+  aprobado boolean DEFAULT false,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT comentarios_pkey PRIMARY KEY (id),
+  CONSTRAINT comentarios_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT comentarios_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
+);
+CREATE TABLE public.disponibilidad_profesional (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  usuario_id uuid NOT NULL,
+  empresa_id uuid NOT NULL,
+  fecha date NOT NULL,
+  tipo text NOT NULL CHECK (tipo = ANY (ARRAY['bloqueo'::text, 'extension'::text])),
+  hora_inicio time without time zone NOT NULL,
+  hora_fin time without time zone NOT NULL,
+  motivo text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT disponibilidad_profesional_pkey PRIMARY KEY (id),
+  CONSTRAINT disponibilidad_profesional_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id),
+  CONSTRAINT disponibilidad_profesional_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+);
+CREATE TABLE public.empresa_config (
+  empresa_id uuid NOT NULL,
+  config_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT empresa_config_pkey PRIMARY KEY (empresa_id),
+  CONSTRAINT empresa_config_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+);
+CREATE TABLE public.empresas (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  nombre text NOT NULL,
+  slug text NOT NULL UNIQUE,
+  descripcion text,
+  logo_url text,
+  color_primary text,
+  color_secondary text,
+  color_background text,
+  activa boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT now(),
+  plan uuid DEFAULT gen_random_uuid(),
+  url text,
+  url_verified_at character varying,
+  url_status character varying,
+  url_verified boolean DEFAULT false,
+  facebook_url text,
+  instagram_url text,
+  email_contacto text,
+  location USER-DEFINED,
+  agenda_turnos boolean DEFAULT true,
+  politica_cancelacion_horas integer DEFAULT 24,
+  whatsapp_contacto text,
+  cierre_ultimo_at timestamp with time zone,
+  CONSTRAINT empresas_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.fichas (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  usuario_empresa_id uuid NOT NULL,
+  empresa_id uuid NOT NULL,
+  profesional_id uuid NOT NULL,
+  servicio_id uuid,
+  servicio_nombre text NOT NULL,
+  fecha date NOT NULL,
+  hora time without time zone NOT NULL,
+  nota text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT fichas_pkey PRIMARY KEY (id),
+  CONSTRAINT fichas_usuario_empresa_id_fkey FOREIGN KEY (usuario_empresa_id) REFERENCES public.usuario_empresa(id),
+  CONSTRAINT fichas_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT fichas_profesional_id_fkey FOREIGN KEY (profesional_id) REFERENCES public.usuarios(id),
+  CONSTRAINT fichas_servicio_id_fkey FOREIGN KEY (servicio_id) REFERENCES public.servicios(id)
+);
+CREATE TABLE public.horarios_empresa (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  empresa_id uuid NOT NULL,
+  dia_semana smallint NOT NULL CHECK (dia_semana >= 0 AND dia_semana <= 6),
+  hora_inicio time without time zone NOT NULL,
+  hora_fin time without time zone NOT NULL,
+  activo boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT horarios_empresa_pkey PRIMARY KEY (id),
+  CONSTRAINT horarios_empresa_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+);
+CREATE TABLE public.notificaciones_pendientes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  reserva_id uuid NOT NULL,
+  tipo text NOT NULL CHECK (tipo = ANY (ARRAY['RECORDATORIO_24H'::text, 'RECORDATORIO_1H'::text, 'CONFIRMACION'::text, 'CANCELACION'::text, 'CAMBIO'::text])),
+  destinatario text NOT NULL CHECK (destinatario = ANY (ARRAY['CLIENTE'::text, 'PROFESIONAL'::text])),
+  telefono text NOT NULL,
+  mensaje text NOT NULL,
+  enviada_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notificaciones_pendientes_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.planes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  plan character varying,
+  descripcion text,
+  precio_mensual numeric,
+  precio_anual numeric,
+  CONSTRAINT planes_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.profesional_servicio (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  profesional_id uuid,
+  servicio_id uuid,
+  CONSTRAINT profesional_servicio_pkey PRIMARY KEY (id),
+  CONSTRAINT profesional_servicio_profesional_id_fkey FOREIGN KEY (profesional_id) REFERENCES public.usuarios(id),
+  CONSTRAINT profesional_servicio_servicio_id_fkey FOREIGN KEY (servicio_id) REFERENCES public.servicios(id)
+);
+CREATE TABLE public.resenas (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  reserva_id uuid,
+  cliente_id uuid,
+  empresa_id uuid,
+  calificacion integer CHECK (calificacion >= 1 AND calificacion <= 5),
+  comentario text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT resenas_pkey PRIMARY KEY (id),
+  CONSTRAINT resenas_cliente_id_fkey FOREIGN KEY (cliente_id) REFERENCES public.usuarios(id),
+  CONSTRAINT resenas_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+);
+CREATE TABLE public.reservas (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  empresa_id uuid NOT NULL,
+  cliente_id uuid NOT NULL,
+  profesional_id uuid NOT NULL,
+  servicio_id uuid NOT NULL,
+  fecha_hora_inicio timestamp with time zone NOT NULL,
+  fecha_hora_fin timestamp with time zone NOT NULL,
+  estado USER-DEFINED NOT NULL DEFAULT 'PENDIENTE'::reserva_estado,
+  estado_anterior text,
+  motivo_cambio text,
+  sena_monto numeric DEFAULT 0,
+  sena_estado USER-DEFINED DEFAULT 'PENDIENTE'::sena_estado,
+  sena_pago_id text,
+  sena_pago_provider text CHECK (sena_pago_provider = ANY (ARRAY['mercadopago'::text, 'stripe'::text])),
+  reserva_origen_id uuid,
+  notas_cliente text,
+  notas_profesional text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  created_by uuid,
+  CONSTRAINT reservas_pkey PRIMARY KEY (id),
+  CONSTRAINT reservas_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT reservas_cliente_id_fkey FOREIGN KEY (cliente_id) REFERENCES public.usuarios(id),
+  CONSTRAINT reservas_profesional_id_fkey FOREIGN KEY (profesional_id) REFERENCES public.usuarios(id),
+  CONSTRAINT reservas_servicio_id_fkey FOREIGN KEY (servicio_id) REFERENCES public.servicios(id),
+  CONSTRAINT reservas_reserva_origen_id_fkey FOREIGN KEY (reserva_origen_id) REFERENCES public.reservas(id),
+  CONSTRAINT reservas_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.usuarios(id)
+);
+CREATE TABLE public.roles (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  nombre text NOT NULL UNIQUE,
+  CONSTRAINT roles_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.servicios (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  empresa_id uuid,
+  nombre text NOT NULL,
+  descripcion text,
+  duracion_minutos integer,
+  precio numeric,
+  activo boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT now(),
+  sena_tipo text DEFAULT 'monto'::text CHECK (sena_tipo = ANY (ARRAY['monto'::text, 'porcentaje'::text])),
+  sena_valor numeric DEFAULT 0,
+  modalidad text DEFAULT 'presencial'::text CHECK (modalidad = ANY (ARRAY['presencial'::text, 'no_presencial'::text, 'ambas'::text])),
+  CONSTRAINT servicios_pkey PRIMARY KEY (id),
+  CONSTRAINT servicios_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+);
+CREATE TABLE public.spatial_ref_sys (
+  srid integer NOT NULL CHECK (srid > 0 AND srid <= 998999),
+  auth_name character varying,
+  auth_srid integer,
+  srtext character varying,
+  proj4text character varying,
+  CONSTRAINT spatial_ref_sys_pkey PRIMARY KEY (srid)
+);
+CREATE TABLE public.sucursales (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  empresa_id uuid,
+  nombre text NOT NULL,
+  direccion text,
+  location USER-DEFINED,
+  activa boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT now(),
+  hora_apertura character varying,
+  hora_cierre character varying,
+  CONSTRAINT sucursales_pkey PRIMARY KEY (id),
+  CONSTRAINT sucursales_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
+);
+CREATE TABLE public.usuario_empresa (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  usuario_id uuid,
+  empresa_id uuid,
+  rol_id uuid,
+  CONSTRAINT usuario_empresa_pkey PRIMARY KEY (id),
+  CONSTRAINT usuario_empresa_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id),
+  CONSTRAINT usuario_empresa_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
+  CONSTRAINT usuario_empresa_rol_id_fkey FOREIGN KEY (rol_id) REFERENCES public.roles(id)
+);
+CREATE TABLE public.usuarios (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  auth_user_id uuid UNIQUE,
+  nombre_completo text,
+  email text UNIQUE,
+  telefono text,
+  activo boolean NOT NULL DEFAULT true,
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  avatar_url text,
+  location USER-DEFINED,
+  CONSTRAINT usuarios_pkey PRIMARY KEY (id),
+  CONSTRAINT usuarios_auth_user_id_fkey FOREIGN KEY (auth_user_id) REFERENCES auth.users(id)
+);_

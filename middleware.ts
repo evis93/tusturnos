@@ -43,17 +43,18 @@ export function middleware(request: NextRequest) {
   // ── 1. Subdominio: {slug}.mensana.com.ar ──────────────────────────────
   if (cleanHostname.endsWith(`.${MENSANA_DOMAIN}`)) {
     const slug = cleanHostname.replace(`.${MENSANA_DOMAIN}`, '');
-    if (slug === 'www') return NextResponse.next();
+    if (slug !== 'www') {
+      const tenantPath = pathname === '/' ? '/auth/login' : pathname;
+      const url = request.nextUrl.clone();
+      url.pathname = `/mensana/${slug}${tenantPath}`;
 
-    const tenantPath = pathname === '/' ? '/auth/login' : pathname;
-    const url = request.nextUrl.clone();
-    url.pathname = `/mensana/${slug}${tenantPath}`;
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set('x-tenant-slug', slug);
+      requestHeaders.set('x-tenant-source', 'subdomain');
 
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('x-tenant-slug', slug);
-    requestHeaders.set('x-tenant-source', 'subdomain');
-
-    return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+      return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
+    }
+    // slug === 'www': fall through to path-based routing (section 2)
   }
 
   // ── 2. URL interna: mensana.com.ar/e/{slug} ───────────────────────────

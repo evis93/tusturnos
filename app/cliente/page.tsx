@@ -6,11 +6,19 @@ import Link from 'next/link';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { supabase } from '@/src/config/supabase';
-import { ReservaController } from '@/src/controllers/ReservaController';
 import ModalResena from '@/src/components/ModalResena';
 
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const DIAS  = ['dom','lun','mar','mié','jue','vie','sáb'];
+const AR_OFFSET_MS = -3 * 60 * 60 * 1000;
+
+function isoToAR(iso: string) {
+  const ar = new Date(new Date(iso).getTime() + AR_OFFSET_MS);
+  return {
+    fecha: ar.toISOString().split('T')[0],
+    hora:  ar.toISOString().split('T')[1].substring(0, 5),
+  };
+}
 
 function formatProxima(fecha: string, hora: string) {
   if (!fecha) return '';
@@ -48,20 +56,19 @@ export default function ClientePage() {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      const { data, error } = await supabase
-        .from('reservas')
-        .select('*')
-        .eq('cliente_id', profile.usuarioId)
-        .eq('empresa_id', profile.empresaId)
-        .order('fecha', { ascending: false });
+      const res = await fetch(`/api/reservas?clienteId=${profile.usuarioId}&empresaId=${profile.empresaId}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
 
-      if (error) throw error;
-
-      const todas = await (ReservaController as any).enriquecerReservas(data || []);
+      // Enriquecer con campos derivados de fecha_hora_inicio (AR local)
+      const todas = (json.data as any[]).map((r: any) => {
+        const ar = isoToAR(r.fecha_hora_inicio);
+        return { ...r, fecha: ar.fecha, hora_inicio: ar.hora, servicio: r.servicio_nombre };
+      });
 
       const proximas = todas
-        .filter((r: any) => r.fecha >= today && ['pendiente', 'confirmada'].includes(r.estado))
-        .sort((a: any, b: any) => a.fecha.localeCompare(b.fecha) || a.hora_inicio.localeCompare(b.hora_inicio));
+        .filter((r: any) => r.fecha >= today && ['PENDIENTE', 'CONFIRMADA'].includes(r.estado))
+        .sort((a: any, b: any) => a.fecha_hora_inicio.localeCompare(b.fecha_hora_inicio));
 
       const pasadas = todas.filter((r: any) => r.fecha < today).slice(0, 3);
 
@@ -126,7 +133,7 @@ export default function ClientePage() {
             <>
               <div className="bg-white rounded-2xl p-5 shadow-sm border" style={{ borderColor: colors.borderLight }}>
                 {/* Badge estado */}
-                {proximaSesion.estado === 'pendiente' ? (
+                {proximaSesion.estado === 'PENDIENTE' ? (
                   <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 mb-3">
                     ⏰ pendiente de confirmación
                   </span>
@@ -140,7 +147,7 @@ export default function ClientePage() {
                   {formatProxima(proximaSesion.fecha, proximaSesion.hora_inicio)}
                 </p>
                 <p className="text-lg font-bold lowercase mb-1" style={{ color: colors.text }}>
-                  {proximaSesion.servicio || proximaSesion.tipo_sesion || 'sesión'}
+                  {proximaSesion.servicio || 'sesión'}
                 </p>
                 {proximaSesion.profesional_nombre && (
                   <p className="text-xs lowercase mb-4" style={{ color: colors.textMuted }}>
@@ -151,7 +158,7 @@ export default function ClientePage() {
                   <button className="flex-1 py-2.5 rounded-xl text-xs font-bold border" style={{ borderColor: colors.border, color: colors.textSecondary }}>
                     cancelar
                   </button>
-                  {proximaSesion.estado === 'confirmada' && (
+                  {proximaSesion.estado === 'CONFIRMADA' && (
                     <button className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ backgroundColor: colors.primaryFaded, color: colors.primary }}>
                       cambiar horario
                     </button>
@@ -159,7 +166,7 @@ export default function ClientePage() {
                 </div>
               </div>
 
-              {proximaSesion.estado === 'pendiente' && (
+              {proximaSesion.estado === 'PENDIENTE' && (
                 <div className="mt-3 flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
                   <span className="text-green-600">💬</span>
                   <p className="text-xs text-green-800 lowercase">
@@ -195,7 +202,7 @@ export default function ClientePage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs lowercase mb-0.5" style={{ color: colors.textMuted }}>{formatFechaHistorial(h.fecha)}</p>
-                    <p className="text-sm font-bold lowercase mb-0.5" style={{ color: colors.text }}>{h.servicio || h.tipo_sesion || 'sesión'}</p>
+                    <p className="text-sm font-bold lowercase mb-0.5" style={{ color: colors.text }}>{h.servicio || 'sesión'}</p>
                     {h.profesional_nombre && <p className="text-xs lowercase mb-2" style={{ color: colors.textSecondary }}>{h.profesional_nombre}</p>}
 
                     {resenasMap[h.id] ? (

@@ -59,37 +59,48 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { empresaId, clienteId, profesionalId, servicioId, fechaHoraInicio } = await req.json()
+    const servicioIdNormalizado = typeof servicioId === 'string' ? servicioId.trim() : servicioId
 
-    if (!empresaId || !clienteId || !profesionalId || !servicioId || !fechaHoraInicio) {
+    if (!empresaId || !clienteId || !profesionalId || !fechaHoraInicio) {
       return NextResponse.json(
-        { error: 'empresaId, clienteId, profesionalId, servicioId y fechaHoraInicio son requeridos' },
+        { error: 'empresaId, clienteId, profesionalId y fechaHoraInicio son requeridos' },
         { status: 400 }
       )
     }
 
     const sb = adminClient()
 
-    // Obtener duración del servicio para calcular fecha_hora_fin
-    const { data: servicio, error: servicioError } = await sb
-      .from('servicios')
-      .select('id, nombre, duracion_minutos, sena_tipo, sena_valor, precio')
-      .eq('id', servicioId)
-      .single()
-
-    if (servicioError || !servicio) {
-      return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
-    }
-
     const inicio = new Date(fechaHoraInicio)
-    const fin    = new Date(inicio.getTime() + servicio.duracion_minutos * 60 * 1000)
-
-    // Calcular monto de seña
+    let duracionMinutos = 30 // duración por defecto cuando no hay servicio
     let senaMonto = 0
-    if (servicio.sena_tipo === 'monto') {
-      senaMonto = servicio.sena_valor ?? 0
-    } else if (servicio.sena_tipo === 'porcentaje' && servicio.precio) {
-      senaMonto = Math.round((servicio.precio * servicio.sena_valor) / 100 * 100) / 100
+
+    if (servicioIdNormalizado) {
+      // Obtener duración del servicio para calcular fecha_hora_fin
+      const { data: servicio, error: servicioError } = await sb
+        .from('servicios')
+        .select('id, nombre, duracion_minutos, sena_tipo, sena_valor, precio')
+        .eq('id', servicioIdNormalizado)
+        .single()
+
+      if (servicioError) {
+        console.error('[api/reservas POST][servicio query]', servicioError.message)
+        return NextResponse.json({ error: 'Error al consultar servicio' }, { status: 500 })
+      }
+
+      if (!servicio) {
+        return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
+      }
+
+      duracionMinutos = servicio.duracion_minutos
+
+      if (servicio.sena_tipo === 'monto') {
+        senaMonto = servicio.sena_valor ?? 0
+      } else if (servicio.sena_tipo === 'porcentaje' && servicio.precio) {
+        senaMonto = Math.round((servicio.precio * servicio.sena_valor) / 100 * 100) / 100
+      }
     }
+
+    const fin = new Date(inicio.getTime() + duracionMinutos * 60 * 1000)
 
     // Verificar que el slot no esté ya ocupado
     const { data: conflicto } = await sb
@@ -114,7 +125,7 @@ export async function POST(req: NextRequest) {
         empresa_id:       empresaId,
         cliente_id:       clienteId,
         profesional_id:   profesionalId,
-        servicio_id:      servicioId,
+        servicio_id:      servicioIdNormalizado,
         fecha_hora_inicio: inicio.toISOString(),
         fecha_hora_fin:   fin.toISOString(),
         estado:           'PENDIENTE',

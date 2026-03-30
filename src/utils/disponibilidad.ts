@@ -44,7 +44,7 @@ export function calcularSlots(
   duracionMinutos: number,
   fecha: Date
 ): Slot[] {
-  const diaSemana = fecha.getDay()
+  const diaSemana = fecha.getUTCDay()
   const horarioDia = horarioBase.find(h => h.diaSemana === diaSemana && h.activo)
 
   if (!horarioDia) return []

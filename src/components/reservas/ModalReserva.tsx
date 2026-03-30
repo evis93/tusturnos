@@ -8,6 +8,31 @@ import { X, Search, Loader2 } from 'lucide-react';
 import { calcularMontoSena } from '@/src/types/servicios';
 import type { Slot } from '@/src/types/disponibilidad';
 
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return -1;
+  return h * 60 + m;
+}
+
+function pickClosestSlot(available: Slot[], preferred?: string | null): string | null {
+  if (available.length === 0) return null;
+  if (!preferred) return available[0].horaInicio;
+
+  const exact = available.find(s => s.horaInicio === preferred);
+  if (exact) return exact.horaInicio;
+
+  const preferredMinutes = toMinutes(preferred);
+  if (preferredMinutes < 0) return available[0].horaInicio;
+
+  const sameHour = available.find(s => s.horaInicio.slice(0, 2) === preferred.slice(0, 2));
+  if (sameHour) return sameHour.horaInicio;
+
+  const next = available.find(s => toMinutes(s.horaInicio) >= preferredMinutes);
+  if (next) return next.horaInicio;
+
+  return available[0].horaInicio;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -23,6 +48,7 @@ interface Props {
 
 export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCreado, fecha, horaInicial, reservaEditar, profesionales, profile }: Props) {
   const { colors } = useTheme();
+  const preferredHoraRef = useRef<string | null>(null);
 
   const [consultanteSearch, setConsultanteSearch] = useState('');
   const [consultantesFiltrados, setConsultantesFiltrados] = useState<any[]>([]);
@@ -30,6 +56,7 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
   const [tiposSesion, setTiposSesion] = useState<any[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [cargandoSlots, setCargandoSlots] = useState(false);
+  const [disponibilidadError, setDisponibilidadError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const searchTimeout = useRef<any>(null);
 
@@ -47,6 +74,7 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
 
   useEffect(() => {
     if (open) {
+      preferredHoraRef.current = horaInicial || null;
       if (reservaEditar) {
         setForm({
           consultante_id: reservaEditar.consultante_id || reservaEditar.cliente_id,
@@ -78,7 +106,12 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
   }, [open, reservaEditar, horaInicial]);
 
   useEffect(() => {
-    DatabaseService.obtenerTiposSesion(profile?.empresaId).then(result => {
+    if (!profile?.empresaId) {
+      setTiposSesion([]);
+      return;
+    }
+
+    DatabaseService.obtenerTiposSesion(profile.empresaId).then(result => {
       if (result.success) setTiposSesion(result.data as any[]);
     });
   }, [profile?.empresaId]);
@@ -88,14 +121,56 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
     const { profesional_id, tipo_sesion_id } = form;
     if (!profesional_id || !tipo_sesion_id || !fecha || !profile?.empresaId) {
       setSlots([]);
+      setDisponibilidadError(null);
       return;
     }
+    const servicioSeleccionado = tiposSesion.find(t => t.id === tipo_sesion_id);
+    const duracionMinutos = Number(servicioSeleccionado?.duracion_minutos || 0);
+    setDisponibilidadError(null);
     setCargandoSlots(true);
-    fetch(`/api/disponibilidad?profesionalId=${profesional_id}&empresaId=${profile.empresaId}&servicioId=${tipo_sesion_id}&fecha=${fecha}`)
-      .then(r => r.json())
-      .then(json => { if (json.success) setSlots(json.data.slots ?? []); })
+    fetch(`/api/disponibilidad?profesionalId=${profesional_id}&empresaId=${profile.empresaId}&servicioId=${tipo_sesion_id}&fecha=${fecha}&duracionMinutos=${duracionMinutos}`)
+      .then(async r => {
+        const json = await r.json();
+        if (!r.ok) {
+          setSlots([]);
+          // Fallback no bloqueante: no frenamos el alta si falla la verificacion de disponibilidad.
+          setDisponibilidadError(null);
+          return;
+        }
+        if (json.success) {
+          setSlots(json.data.slots ?? []);
+          setDisponibilidadError(null);
+        }
+      })
+      .catch(() => {
+        setSlots([]);
+        setDisponibilidadError(null);
+      })
       .finally(() => setCargandoSlots(false));
-  }, [form.profesional_id, form.tipo_sesion_id, fecha, profile?.empresaId]);
+  }, [form.profesional_id, form.tipo_sesion_id, fecha, profile?.empresaId, tiposSesion]);
+
+  useEffect(() => {
+    if (!open || reservaEditar) return;
+
+    const disponibles = slots.filter(s => s.disponible);
+    if (disponibles.length === 0) return;
+
+    const horaPreferida = preferredHoraRef.current;
+
+    // Si la hora cliqueada existe en los slots, priorizarla siempre.
+    if (horaPreferida && disponibles.some(s => s.horaInicio === horaPreferida) && form.hora_inicio !== horaPreferida) {
+      setForm(prev => ({ ...prev, hora_inicio: horaPreferida }));
+      return;
+    }
+
+    const horaActualEsValida = disponibles.some(s => s.horaInicio === form.hora_inicio);
+    if (horaActualEsValida) return;
+
+    const sugerida = pickClosestSlot(disponibles, horaPreferida || form.hora_inicio || null);
+    if (!sugerida) return;
+
+    setForm(prev => ({ ...prev, hora_inicio: sugerida }));
+  }, [open, reservaEditar, slots, horaInicial, form.hora_inicio]);
 
   const buscarConsultante = (query: string) => {
     setConsultanteSearch(query);
@@ -266,6 +341,14 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
                   </option>
                 ))}
               </select>
+              {disponibilidadError && (
+                <div
+                  className="mt-2 rounded-lg px-3 py-2 text-xs"
+                  style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}
+                >
+                  No se pudo validar disponibilidad del servicio. Podés guardar igual.
+                </div>
+              )}
             </div>
           )}
 
@@ -275,6 +358,11 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
               Hora de inicio *
               {cargandoSlots && <span className="ml-2 text-xs font-normal" style={{ color: colors.textSecondary }}>Cargando disponibilidad...</span>}
             </label>
+            {horaInicial && (
+              <p className="text-xs mb-2" style={{ color: colors.textSecondary }}>
+                Hora tomada desde Agenda: <span className="font-semibold" style={{ color: colors.text }}>{horaInicial}</span>
+              </p>
+            )}
             {slots.length > 0 ? (
               <div className="grid grid-cols-4 gap-1.5">
                 {slots.map(s => (
@@ -300,7 +388,12 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
                 className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={{ borderColor: colors.border, color: colors.text }}
               >
-                <option value="">
+                {form.hora_inicio && (
+                  <option value={form.hora_inicio}>
+                    {`${form.hora_inicio} (hora seleccionada en agenda)`}
+                  </option>
+                )}
+                <option value="" disabled={!!form.hora_inicio}>
                   {form.tipo_sesion_id ? 'Sin disponibilidad para este día' : 'Seleccioná un servicio primero'}
                 </option>
               </select>

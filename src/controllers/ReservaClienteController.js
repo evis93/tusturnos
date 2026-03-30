@@ -115,20 +115,29 @@ export class ReservaClienteController {
     }
   }
 
-  // Slots ya ocupados para un profesional en una fecha (hora_inicio como 'HH:MM')
+  // Slots ya ocupados para un profesional en una fecha (devuelve 'HH:MM' en hora AR)
   static async obtenerSlotsOcupados(profesionalId, fecha) {
     try {
+      // Rango del día en Argentina (UTC-3)
+      const startAR = new Date(`${fecha}T00:00:00-03:00`).toISOString();
+      const endAR   = new Date(`${fecha}T23:59:59-03:00`).toISOString();
+
       const { data, error } = await supabase
         .from('reservas')
-        .select('hora_inicio')
+        .select('fecha_hora_inicio')
         .eq('profesional_id', profesionalId)
-        .eq('fecha', fecha)
-        .neq('estado', 'cancelada');
+        .gte('fecha_hora_inicio', startAR)
+        .lte('fecha_hora_inicio', endAR)
+        .in('estado', ['PENDIENTE', 'CONFIRMADA', 'CAMBIO_SOLICITADO']);
 
       if (error) throw error;
 
-      // Normalizar a 'HH:MM' para comparar con los slots generados
-      const ocupados = (data || []).map(r => r.hora_inicio?.substring(0, 5));
+      // Convertir UTC → hora local AR (UTC-3)
+      const AR_OFFSET_MS = -3 * 60 * 60 * 1000;
+      const ocupados = (data || []).map(r => {
+        const arDate = new Date(new Date(r.fecha_hora_inicio).getTime() + AR_OFFSET_MS);
+        return arDate.toISOString().split('T')[1].substring(0, 5); // 'HH:MM'
+      });
       return { success: true, data: ocupados };
     } catch (error) {
       console.error('[ReservaClienteController.obtenerSlotsOcupados]', error);
@@ -157,26 +166,20 @@ export class ReservaClienteController {
     return { manana, tarde, todos: disponibles };
   }
 
-  // Crea la solicitud de turno con estado 'pendiente'
+  // Crea la solicitud de turno con estado PENDIENTE
   static async solicitarReserva({ empresaId, profesionalId, clienteId, servicioId, fecha, horaInicio }) {
     try {
-      const { data, error } = await supabase
-        .from('reservas')
-        .insert([{
-          empresa_id: empresaId,
-          profesional_id: profesionalId,
-          cliente_id: clienteId,
-          autor_id: clienteId,
-          servicio_id: servicioId || null,
-          fecha,
-          hora_inicio: `${horaInicio}:00`,
-          estado: 'pendiente',
-        }])
-        .select()
-        .single();
+      // Construir ISO con zona horaria AR (-03:00) para almacenar UTC correcto
+      const fechaHoraInicio = `${fecha}T${horaInicio}:00-03:00`;
 
-      if (error) throw error;
-      return { success: true, data };
+      const res = await fetch('/api/reservas', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ empresaId, profesionalId, clienteId, servicioId, fechaHoraInicio }),
+      });
+      const json = await res.json();
+      if (!res.ok) return { success: false, error: json.error || 'Error al crear la reserva' };
+      return { success: true, data: json.data };
     } catch (error) {
       console.error('[ReservaClienteController.solicitarReserva]', error);
       return { success: false, error: error.message };
