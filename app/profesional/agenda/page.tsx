@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { ReservaController } from '@/src/controllers/ReservaController';
@@ -9,9 +9,9 @@ import ModalReserva from '@/src/components/reservas/ModalReserva';
 import ModalPago from '@/src/components/reservas/ModalPago';
 import ModalFicha from '@/src/components/reservas/ModalFicha';
 import ModalAccesoCliente from '@/src/components/reservas/ModalAccesoCliente';
-import ModalCierreCaja from '@/src/components/agenda/ModalCierreCaja';
-import { ChevronLeft, ChevronRight, ClipboardList, LockKeyhole } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { supabase } from '@/src/config/supabase';
 
 const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -25,13 +25,17 @@ export default function AgendaProfesionalPage() {
   const [selectedDate, setSelectedDate] = useState(hoy);
   const [reservas, setReservas] = useState<any[]>([]);
   const [profesionales, setProfesionales] = useState<any[]>([]);
+
+  useEffect(() => {
+    localStorage.setItem('agenda_fecha_seleccionada', selectedDate);
+  }, [selectedDate]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [pagoModal, setPagoModal] = useState<{ open: boolean; reserva: any | null }>({ open: false, reserva: null });
   const [fichaModal, setFichaModal] = useState<{ open: boolean; reserva: any | null }>({ open: false, reserva: null });
   const [editingReserva, setEditingReserva] = useState<any>(null);
   const [horaSeleccionada, setHoraSeleccionada] = useState<string | null>(null);
-  const [cierreCajaOpen, setCierreCajaOpen] = useState(false);
+
 
   // Acceso cliente
   const [accesoModal, setAccesoModal] = useState<{
@@ -48,10 +52,18 @@ export default function AgendaProfesionalPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const [fichasCount, setFichasCount] = useState(0);
+
   const cargarReservas = useCallback(async () => {
     setLoading(true);
-    const result = await ReservaController.obtenerReservasPorFecha(selectedDate, profile?.profesionalId, profile);
+    const [result, fichasResult] = await Promise.all([
+      ReservaController.obtenerReservasPorFecha(selectedDate, profile?.profesionalId, profile),
+      profile?.profesionalId
+        ? supabase.from('fichas').select('id', { count: 'exact', head: true }).eq('fecha', selectedDate).eq('profesional_id', profile.profesionalId)
+        : Promise.resolve({ count: 0 }),
+    ]);
     if (result.success) setReservas((result as any).data || []);
+    setFichasCount((fichasResult as any).count ?? 0);
     setLoading(false);
   }, [selectedDate, profile]);
 
@@ -112,13 +124,15 @@ export default function AgendaProfesionalPage() {
     if (reserva.estado === 'cancelada') {
       return { background: '#f3f4f6', borderLeft: `4px solid #9ca3af` };
     }
-    if (reserva.pagado) {
-      return { background: colors.primaryFaded, borderLeft: `4px solid ${colors.primary}` };
-    }
     return { background: '#FFF3CD', borderLeft: `4px solid ${colors.warning}` };
   };
 
   const esHoySeleccionado = selectedDate === hoy;
+
+  const cajaCerrada = useMemo(() => {
+    if (fichasCount === 0) return false;
+    return reservas.filter(r => r.estado === 'confirmada').length === 0;
+  }, [fichasCount, reservas]);
 
   return (
     <div className="flex flex-col h-full">
@@ -133,15 +147,6 @@ export default function AgendaProfesionalPage() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => setCierreCajaOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition hover:opacity-80"
-            style={{ background: colors.primaryFaded, color: colors.primary }}
-            title="Cerrar caja del día"
-          >
-            <LockKeyhole size={14} />
-            cerrar caja
-          </button>
         </div>
 
         {/* Navegación de días */}
@@ -174,6 +179,17 @@ export default function AgendaProfesionalPage() {
 
         <p className="text-sm mt-2 capitalize" style={{ color: colors.textSecondary }}>{fechaFormateada}</p>
       </div>
+
+      {/* Banner caja cerrada */}
+      {!loading && cajaCerrada && (
+        <div className="mx-6 mb-3 flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: '#d1fae5', color: '#065f46' }}>
+          <CheckCircle2 size={18} className="shrink-0" />
+          <div>
+            <p className="text-sm font-semibold">Caja cerrada</p>
+            <p className="text-xs opacity-80">Todas las sesiones del día fueron cobradas y archivadas.</p>
+          </div>
+        </div>
+      )}
 
       {/* Timeline */}
       <div className="flex-1 overflow-auto px-6 pb-6">
@@ -230,7 +246,7 @@ export default function AgendaProfesionalPage() {
                               <ClipboardList size={13} />
                               Ficha
                             </button>
-                            {!reserva.pagado && reserva.estado !== 'cancelada' && (
+{reserva.estado !== 'cancelada' && (
                               <button
                                 className="text-xs px-3 py-1 rounded-lg"
                                 style={{ background: colors.primary, color: '#fff' }}
@@ -328,16 +344,6 @@ export default function AgendaProfesionalPage() {
         />
       )}
 
-      {cierreCajaOpen && (
-        <ModalCierreCaja
-          open={cierreCajaOpen}
-          onClose={() => setCierreCajaOpen(false)}
-          onCajaActualizada={() => { setCierreCajaOpen(false); cargarReservas(); }}
-          fecha={selectedDate}
-          reservas={reservas}
-          profile={profile}
-        />
-      )}
     </div>
   );
 }

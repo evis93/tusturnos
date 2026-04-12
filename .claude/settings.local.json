@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(find c:/Users/Eva/Desktop/03.MENSANA/mensana/_bmad -name *analyst* -o -name *prd* -o -name *requirements*)",
-      "Bash(npx tsc:*)"
-    ]
-  }
-}

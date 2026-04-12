@@ -63,8 +63,8 @@ export async function POST(req: NextRequest) {
     const webUrl = empresa?.custom_domain
       ? `https://${empresa.custom_domain}`
       : empresa?.slug
-      ? `https://${empresa.slug}.mensana.com.ar`
-      : 'https://mensana.com.ar';
+      ? `https://${empresa.slug}.tusturnos.ar`
+      : 'https://tusturnos.ar';
 
     const passwordTemporal = generarPasswordTemporal();
 
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       const { data: rolData } = await sb
         .from('roles')
         .select('id')
-        .eq('nombre', 'cliente')
+        .eq('rol', 'cliente')
         .maybeSingle();
 
       if (rolData) {

@@ -6,21 +6,20 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import {
-  CalendarDays,
-  CalendarRange,
   ClipboardList,
-  Clock,
-  Users,
-  UserRound,
-  Sparkles,
   BarChart3,
   Building2,
   Home,
   LogOut,
   LayoutDashboard,
   KeyRound,
+  Clock,
+  QrCode,
+  MapPin,
+  ChevronDown,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useSucursal } from '@/src/context/SucursalContext';
 
 interface NavItem {
   label: string;
@@ -31,18 +30,13 @@ interface NavItem {
 const ADMIN_NAV: NavItem[] = [
   { label: 'Agenda Diaria', href: '/admin/agenda', icon: <Home size={18} /> },
   { label: 'Gestión de Reservas', href: '/admin/gestion-reservas', icon: <ClipboardList size={18} /> },
-  { label: 'Horarios', href: '/admin/horarios', icon: <Clock size={18} /> },
-  { label: 'Profesionales', href: '/admin/profesionales', icon: <Users size={18} /> },
-  { label: 'Clientes', href: '/admin/clientes', icon: <UserRound size={18} /> },
-  { label: 'Servicios', href: '/admin/servicios', icon: <Sparkles size={18} /> },
-  { label: 'Agenda mensual', href: '/admin/agenda-mensual', icon: <CalendarRange size={18} /> },
   { label: 'Reportes', href: '/admin/reportes', icon: <BarChart3 size={18} /> },
+  { label: 'Código QR', href: '/admin/qr', icon: <QrCode size={18} /> },
   { label: 'Administración', href: '/admin', icon: <LayoutDashboard size={18} /> },
 ];
 
 const PROFESIONAL_NAV: NavItem[] = [
   { label: 'Agenda Diaria', href: '/profesional/agenda', icon: <Home size={18} /> },
-  { label: 'Agenda mensual', href: '/profesional/agenda-mensual', icon: <CalendarRange size={18} /> },
   { label: 'Gestión de Reservas', href: '/profesional/gestion-reservas', icon: <ClipboardList size={18} /> },
   { label: 'Horarios', href: '/profesional/horarios', icon: <Clock size={18} /> },
 ];
@@ -67,11 +61,20 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { profile, logout } = useAuth();
   const { colors, logoUrl, empresaNombre } = useTheme();
+  const { sucursales, sucursalActiva, setSucursalActiva } = useSucursal();
   const [logoFailed, setLogoFailed] = React.useState(false);
+  const [sucursalOpen, setSucursalOpen] = React.useState(false);
 
   React.useEffect(() => { setLogoFailed(false); }, [logoUrl]);
+  React.useEffect(() => {
+    if (!sucursalOpen) return;
+    const handler = () => setSucursalOpen(false);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [sucursalOpen]);
 
   const nav = getNavByRol(profile?.rol ?? null);
+  const mostrarSucursales = sucursales.length > 0 && (profile?.rol === 'admin' || profile?.rol === 'superadmin' || profile?.rol === 'profesional');
 
   return (
     <aside
@@ -99,6 +102,59 @@ export default function Sidebar() {
           </div>
         )}
       </div>
+
+      {/* Selector de sucursal */}
+      {mostrarSucursales && (
+        <div className="px-3 py-3 border-b" style={{ borderColor: colors.border }}>
+          {sucursales.length === 1 ? (
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <MapPin size={14} style={{ color: colors.primary }} className="flex-shrink-0" />
+              <span className="text-xs font-medium truncate" style={{ color: colors.textSecondary }}>
+                {sucursalActiva?.nombre}
+              </span>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                onClick={e => { e.stopPropagation(); setSucursalOpen(o => !o); }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition text-left"
+              >
+                <MapPin size={14} style={{ color: colors.primary }} className="flex-shrink-0" />
+                <span className="flex-1 text-xs font-medium truncate" style={{ color: colors.text }}>
+                  {sucursalActiva?.nombre || 'Seleccionar sucursal'}
+                </span>
+                <ChevronDown
+                  size={14}
+                  style={{ color: colors.textSecondary, transform: sucursalOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
+                />
+              </button>
+              {sucursalOpen && (
+                <div
+                  className="absolute left-0 right-0 top-full mt-1 bg-white rounded-lg border shadow-lg z-50 overflow-hidden"
+                  style={{ borderColor: colors.border }}
+                >
+                  {sucursales.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => { setSucursalActiva(s); setSucursalOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-gray-50 transition"
+                      style={{
+                        fontWeight: sucursalActiva?.id === s.id ? 600 : 400,
+                        color: sucursalActiva?.id === s.id ? colors.primary : colors.text,
+                      }}
+                    >
+                      {sucursalActiva?.id === s.id && (
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: colors.primary }} />
+                      )}
+                      <span className={sucursalActiva?.id === s.id ? '' : 'ml-3.5'}>{s.nombre}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Nav items */}
       <nav className="flex-1 px-3 py-4 space-y-1">

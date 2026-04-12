@@ -24,11 +24,11 @@ export class ReservaClienteController {
         .from('usuario_empresa')
         .select(`
           usuario_id,
-          roles!inner(nombre),
+          roles!inner(rol),
           usuarios!inner(id, nombre_completo, avatar_url)
         `)
         .eq('empresa_id', empresaId)
-        .in('roles.nombre', ['profesional', 'admin']);
+        .in('roles.rol', ['profesional', 'admin']);
 
       if (error) throw error;
 
@@ -37,7 +37,7 @@ export class ReservaClienteController {
       const profMap = new Map();
       (data || []).forEach(item => {
         const id = item.usuarios.id;
-        const rol = item.roles.nombre;
+        const rol = item.roles.rol;
         const existing = profMap.get(id);
         if (!existing || (ROL_PRIORIDAD[rol] || 0) > (ROL_PRIORIDAD[existing.rol] || 0)) {
           profMap.set(id, {
@@ -77,6 +77,12 @@ export class ReservaClienteController {
     }
   }
 
+  static calcularSeña(precioTotal, porcentaje = 0.3) {
+    const monto = Number(precioTotal);
+    if (!Number.isFinite(monto) || monto <= 0) return null;
+    return Math.round(monto * porcentaje * 100) / 100;
+  }
+
   // Horarios del profesional para un día de semana (0=Dom, 1=Lun … 6=Sab)
   static async obtenerHorariosDelDia(profesionalId, diaSemana) {
     try {
@@ -103,7 +109,7 @@ export class ReservaClienteController {
         .select('hora_inicio')
         .eq('profesional_id', profesionalId)
         .eq('fecha', fecha)
-        .neq('estado', 'cancelada');
+        .not('estado', 'in', '("cancelada","rechazada")');
 
       if (error) throw error;
 
@@ -137,8 +143,24 @@ export class ReservaClienteController {
     return { manana, tarde, todos: disponibles };
   }
 
+  // Cancela una reserva (DELETE). Solo puede hacerlo el cliente dueño de la reserva.
+  static async cancelarReserva(reservaId, clienteId) {
+    try {
+      const { error } = await supabase
+        .from('reservas')
+        .delete()
+        .eq('id', reservaId)
+        .eq('cliente_id', clienteId);
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      console.error('[ReservaClienteController.cancelarReserva]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Crea la solicitud de turno con estado 'pendiente'
-  static async solicitarReserva({ empresaId, profesionalId, clienteId, servicioId, fecha, horaInicio }) {
+  static async solicitarReserva({ empresaId, profesionalId, clienteId, servicioId, fecha, horaInicio, precioTotal, montoSeña }) {
     try {
       const { data, error } = await supabase
         .from('reservas')
@@ -151,6 +173,10 @@ export class ReservaClienteController {
           fecha,
           hora_inicio: `${horaInicio}:00`,
           estado: 'pendiente',
+          precio_total: precioTotal ?? null,
+          monto_seña: montoSeña ?? null,
+          seña_pagada: false,
+          pagado: false,
         }])
         .select()
         .single();

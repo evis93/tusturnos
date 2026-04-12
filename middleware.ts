@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// En producción: mensana.com.ar
-// En local (con /etc/hosts): sobreescribir con MENSANA_DOMAIN=mensana.local en .env.local
-const MENSANA_DOMAIN = process.env.MENSANA_DOMAIN ?? 'mensana.com.ar';
+// En producción: tusturnos.ar
+// En local (con /etc/hosts): sobreescribir con TUSTURNOS_DOMAIN=tusturnos.local en .env.local
+const MENSANA_DOMAIN = process.env.TUSTURNOS_DOMAIN ?? process.env.MENSANA_DOMAIN ?? 'tusturnos.ar';
 
 /**
  * Paths que nunca se reescriben para routing de tenant.
  * Los dashboards autenticados, rutas internas de Next.js y APIs
  * se sirven tal cual incluso en subdominios.
- * /auth NO está aquí — en subdominios se reescribe a /mensana/[slug]/auth/...
+ * /auth NO está aquí — en subdominios se reescribe a /tusturnos/[slug]/auth/...
  */
 const BYPASS_PREFIXES = [
   '/_next',
@@ -16,7 +16,7 @@ const BYPASS_PREFIXES = [
   '/admin',
   '/profesional',
   '/cliente',
-  '/mensana',
+  '/tusturnos',
   '/favicon.ico',
   '/robots.txt',
   '/images',
@@ -40,14 +40,14 @@ export function middleware(request: NextRequest) {
 
   if (shouldBypass(pathname)) return NextResponse.next();
 
-  // ── 1. Subdominio: {slug}.mensana.com.ar ──────────────────────────────
+  // ── 1. Subdominio: {slug}.tusturnos.ar ──────────────────────────────
   if (cleanHostname.endsWith(`.${MENSANA_DOMAIN}`)) {
     const slug = cleanHostname.replace(`.${MENSANA_DOMAIN}`, '');
     if (slug === 'www') return NextResponse.next();
 
     const tenantPath = pathname === '/' ? '/auth/login' : pathname;
     const url = request.nextUrl.clone();
-    url.pathname = `/mensana/${slug}${tenantPath}`;
+    url.pathname = `/tusturnos/${slug}${tenantPath}`;
 
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-tenant-slug', slug);
@@ -66,7 +66,7 @@ export function middleware(request: NextRequest) {
       const slug = match[1];
       const rest = match[2] ?? '/auth/login';
       const url = request.nextUrl.clone();
-      url.pathname = `/mensana/${slug}${rest}`;
+      url.pathname = `/tusturnos/${slug}${rest}`;
 
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set('x-tenant-slug', slug);

@@ -100,7 +100,7 @@ export class ConsultanteController {
       const { data: rolData, error: rolError } = await supabase
         .from('roles')
         .select('id')
-        .eq('nombre', 'cliente')
+        .eq('rol', 'cliente')
         .maybeSingle();
 
       if (rolError || !rolData) throw new Error('Rol cliente no encontrado');

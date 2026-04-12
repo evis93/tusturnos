@@ -44,10 +44,10 @@ export async function GET(req: NextRequest) {
       .select(`
         usuario_id,
         usuarios!inner(id, nombre_completo, email, telefono),
-        roles!inner(nombre)
+        roles!inner(rol)
       `)
       .eq('empresa_id', empresaId)
-      .eq('roles.nombre', 'cliente');
+      .eq('roles.rol', 'cliente');
 
     if (error) throw error;
 
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
           if (authError.message.includes('already been registered') || authError.code === 'email_exists') {
             // El usuario existe en auth pero no está linkeado → buscar y linkear
             const { data: authList } = await sb.auth.admin.listUsers();
-            const existingAuthUser = authList?.users?.find(u => u.email === email.trim().toLowerCase());
+            const existingAuthUser = (authList?.users ?? []).find((u: any) => u.email === email.trim().toLowerCase());
             if (!existingAuthUser) {
               return NextResponse.json({ error: 'Email ya registrado en autenticación' }, { status: 409 });
             }
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
     const { data: rolData, error: rolError } = await sb
       .from('roles')
       .select('id')
-      .eq('nombre', 'cliente')
+      .eq('rol', 'cliente')
       .maybeSingle();
 
     if (rolError || !rolData) {

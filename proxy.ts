@@ -29,11 +29,11 @@ export async function proxy(request: NextRequest) {
 
   // Rutas públicas - no requieren auth
   // /auth/* — login, register, recuperar, cambio contraseña
-  // /mensana/[empresa]/* — landing pública por QR (empresa puede ser cualquier slug)
+  // /tusturnos/[empresa]/* — landing pública por QR (empresa puede ser cualquier slug)
   const isPublic =
     pathname === '/' ||
     pathname.startsWith('/auth/') ||
-    /^\/mensana\/[^/]+(\/|$)/.test(pathname); // /mensana/{slug}/**
+    /^\/tusturnos\/[^/]+(\/|$)/.test(pathname); // /tusturnos/{slug}/**
 
   if (isPublic) {
     return supabaseResponse;

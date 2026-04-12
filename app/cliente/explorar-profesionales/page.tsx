@@ -51,8 +51,8 @@ export default function ExplorarProfesionalesPage() {
     setLoading(true);
     const { data } = await supabase
       .from('empresas')
-      .select('id, nombre, descripcion, logo_url, direccion, color_primary')
-      .eq('activo', true)
+      .select('id, nombre, descripcion, logo_url, color_primary')
+      .eq('activa', true)
       .order('nombre');
     if (data) setEmpresas(data);
     setLoading(false);

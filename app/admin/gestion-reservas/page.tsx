@@ -8,7 +8,14 @@ import ModalPago from '@/src/components/reservas/ModalPago';
 import { RefreshCw, MessageCircle, Check, X } from 'lucide-react';
 import { clsx } from 'clsx';
 
-const TABS = ['Pendientes', 'Confirmadas', 'Historial'];
+const TABS = ['Pendientes', 'Confirmadas'];
+
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function formatearFecha(fecha: string) {
+  const [, m, d] = fecha.split('-');
+  return `${parseInt(d)} de ${MESES[parseInt(m) - 1]}`;
+}
 
 export default function GestionReservasPage() {
   const { profile } = useAuth();
@@ -18,6 +25,13 @@ export default function GestionReservasPage() {
   const [reservas, setReservas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagoModal, setPagoModal] = useState<{ open: boolean; reserva: any | null }>({ open: false, reserva: null });
+
+  const [fechaAgenda] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('agenda_fecha_seleccionada') || new Date().toISOString().split('T')[0];
+    }
+    return new Date().toISOString().split('T')[0];
+  });
 
   const cargarReservas = useCallback(async () => {
     setLoading(true);
@@ -30,8 +44,7 @@ export default function GestionReservasPage() {
 
   const reservasFiltradas = useMemo(() => {
     if (activeTab === 0) return reservas.filter(r => r.estado === 'pendiente');
-    if (activeTab === 1) return reservas.filter(r => r.estado === 'confirmada');
-    return reservas.filter(r => r.estado === 'cancelada' || r.estado === 'completada');
+    return reservas.filter(r => r.estado === 'confirmada');
   }, [reservas, activeTab]);
 
   const handleConfirmar = async (id: string) => {
@@ -68,28 +81,34 @@ export default function GestionReservasPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
-        {TABS.map((tab, i) => {
-          const pendientesCount = i === 0 ? reservas.filter(r => r.estado === 'pendiente').length : 0;
-          return (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(i)}
-              className={clsx('flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition', activeTab === i ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700')}
-              style={activeTab === i ? { color: colors.primary } : {}}
-            >
-              {tab}
-              {pendientesCount > 0 && (
-                <span
-                  className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-white font-bold"
-                  style={{ background: '#ef4444', fontSize: '10px', padding: '0 4px' }}
-                >
-                  {pendientesCount}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      <div className="flex flex-col gap-2 mb-6">
+        <p className="text-xs font-medium" style={{ color: colors.textSecondary }}>
+          {formatearFecha(fechaAgenda)}
+        </p>
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+          {TABS.map((tab, i) => {
+            const estado = i === 0 ? 'pendiente' : 'confirmada';
+            const count = reservas.filter(r => r.estado === estado && r.fecha === fechaAgenda).length;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(i)}
+                className={clsx('flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition', activeTab === i ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700')}
+                style={activeTab === i ? { color: colors.primary } : {}}
+              >
+                {tab}
+                {count > 0 && (
+                  <span
+                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-white font-bold"
+                    style={{ background: i === 0 ? '#ef4444' : colors.success, fontSize: '10px', padding: '0 4px' }}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {loading ? (
@@ -118,9 +137,14 @@ export default function GestionReservasPage() {
                     {reserva.fecha} · {reserva.hora_inicio?.substring(0, 5)}
                     {reserva.profesional?.nombre ? ` · ${reserva.profesional.nombre}` : ''}
                   </p>
+                  {(reserva.servicio || reserva.tipo_sesion) && (
+                    <p className="text-xs mt-0.5 font-medium" style={{ color: colors.primary }}>
+                      {reserva.servicio || reserva.tipo_sesion}
+                    </p>
+                  )}
                   {reserva.precio_total != null && (
                     <p className="text-sm font-medium mt-1" style={{ color: colors.primary }}>
-                      ${reserva.precio_total} {reserva.pagado ? '✅ Pagado' : '⏳ Pendiente de pago'}
+                      ${reserva.precio_total}
                     </p>
                   )}
                 </div>
@@ -150,15 +174,13 @@ export default function GestionReservasPage() {
                     </button>
                   </>
                 )}
-                {!reserva.pagado && (
-                  <button
+<button
                     onClick={() => setPagoModal({ open: true, reserva })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
                     style={{ background: colors.primary }}
                   >
                     💰 Registrar pago
                   </button>
-                )}
                 {(reserva.consultante?.telefono || reserva.consultante_telefono) && (
                   <button
                     onClick={() => handleWhatsApp(reserva)}

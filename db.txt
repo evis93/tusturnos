@@ -1,0 +1,13 @@
+mensana dc60bf5f-a42c-448e-ae56-ef42e7ec9bd2
+tusturnos 9684a827-0837-4fe1-b6ee-29d00f268a21
+monalisa c7f4cd65-22f6-4fbf-980b-083d672db2ec
+arte_urbano d4457a8a-8ed5-410c-8cd5-b0dd5a29bf6c
+
+admin 868ae25f-2b34-4fd9-9d56-f82f06e05649
+profesional fe618597-8256-4e7e-9a8d-28883a6e4b19
+cliente cdba9d8e-6501-444b-95af-90b401edcb78
+super 9f41c48c-3ad7-4044-bcc3-c7f9579a3267
+
+yo 3e67827b-b9ce-4bf7-b38a-ceed9b88efd0 - a8791371-01b6-419d-b23f-441ff2017a70
+marisol 5023dc58-167b-44c0-8aaf-1d0d44ab7c1c - 
+
