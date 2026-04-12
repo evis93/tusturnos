@@ -13,12 +13,12 @@ export class HorarioController {
   ];
 
   // Obtener horarios del profesional (usa profile.profesionalId en vez de TERAPEUTA_ID)
-  static async obtenerHorarios(profile) {
+  static async obtenerHorarios(profile, profesionalObjetivoId = null) {
     const permError = requirePermission(profile, 'horarios:read');
     if (permError) return permError;
 
     try {
-      const profesionalId = profile.profesionalId;
+      const profesionalId = profesionalObjetivoId || profile.profesionalId;
       if (!profesionalId) {
         return { success: false, error: 'No se encontró ID de profesional' };
       }
@@ -49,7 +49,7 @@ export class HorarioController {
     if (permError) return permError;
 
     try {
-      const profesionalId = profile.profesionalId;
+      const profesionalId = horarioData.profesional_id || profile.profesionalId;
       if (!profesionalId) {
         return { success: false, error: 'No se encontró ID de profesional' };
       }

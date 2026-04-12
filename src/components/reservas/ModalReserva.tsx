@@ -1,37 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '@/src/context/ThemeContext';
+import { ReservaController } from '@/src/controllers/ReservaController';
 import { ConsultanteController } from '@/src/controllers/ConsultanteController';
 import { DatabaseService } from '@/src/services/database.service';
 import { X, Search, Loader2 } from 'lucide-react';
-import { calcularMontoSena } from '@/src/types/servicios';
-import type { Slot } from '@/src/types/disponibilidad';
 
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return -1;
-  return h * 60 + m;
-}
-
-function pickClosestSlot(available: Slot[], preferred?: string | null): string | null {
-  if (available.length === 0) return null;
-  if (!preferred) return available[0].horaInicio;
-
-  const exact = available.find(s => s.horaInicio === preferred);
-  if (exact) return exact.horaInicio;
-
-  const preferredMinutes = toMinutes(preferred);
-  if (preferredMinutes < 0) return available[0].horaInicio;
-
-  const sameHour = available.find(s => s.horaInicio.slice(0, 2) === preferred.slice(0, 2));
-  if (sameHour) return sameHour.horaInicio;
-
-  const next = available.find(s => toMinutes(s.horaInicio) >= preferredMinutes);
-  if (next) return next.horaInicio;
-
-  return available[0].horaInicio;
-}
+const HORARIOS_DISPONIBLES = Array.from({ length: 27 }, (_, i) => {
+  const h = Math.floor(i / 2) + 8;
+  const m = i % 2 === 0 ? '00' : '30';
+  return `${h.toString().padStart(2, '0')}:${m}`;
+});
 
 interface Props {
   open: boolean;
@@ -48,16 +28,14 @@ interface Props {
 
 export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCreado, fecha, horaInicial, reservaEditar, profesionales, profile }: Props) {
   const { colors } = useTheme();
-  const preferredHoraRef = useRef<string | null>(null);
 
   const [consultanteSearch, setConsultanteSearch] = useState('');
   const [consultantesFiltrados, setConsultantesFiltrados] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [tiposSesion, setTiposSesion] = useState<any[]>([]);
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [cargandoSlots, setCargandoSlots] = useState(false);
-  const [disponibilidadError, setDisponibilidadError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  // Precio base del servicio seleccionado (solo se actualiza al cambiar el servicio)
+  const [precioBase, setPrecioBase] = useState('');
   const searchTimeout = useRef<any>(null);
 
   const [form, setForm] = useState({
@@ -70,11 +48,30 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
     tipo_sesion_id: null as string | null,
     precio_total: '',
     monto_seña: '',
+    descuento_pct: '',
+    descuento_fijo: '',
   });
+
+  // Auto-computa precio_total cuando cambia precioBase o los descuentos
+  useEffect(() => {
+    const base = parseFloat(precioBase);
+    if (!base) return;
+    const pct = parseFloat(form.descuento_pct) || 0;
+    const fijo = parseFloat(form.descuento_fijo) || 0;
+    const descuento = Math.round(base * pct / 100) + fijo;
+    setForm(prev => ({ ...prev, precio_total: Math.max(0, base - descuento).toString() }));
+  }, [precioBase, form.descuento_pct, form.descuento_fijo]);
+
+  // Monto que queda por cobrar en sesión (precio − seña)
+  const aCobrarenSesion = useMemo(() => {
+    const precio = parseFloat(form.precio_total) || 0;
+    const seña = parseFloat(form.monto_seña) || 0;
+    if (!precio || !seña) return null;
+    return Math.max(0, precio - seña);
+  }, [form.precio_total, form.monto_seña]);
 
   useEffect(() => {
     if (open) {
-      preferredHoraRef.current = horaInicial || null;
       if (reservaEditar) {
         setForm({
           consultante_id: reservaEditar.consultante_id || reservaEditar.cliente_id,
@@ -86,8 +83,11 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
           tipo_sesion_id: reservaEditar.servicio_id || null,
           precio_total: reservaEditar.precio_total?.toString() || '',
           monto_seña: reservaEditar.monto_seña?.toString() || '',
+          descuento_pct: '',
+          descuento_fijo: '',
         });
         setConsultanteSearch(reservaEditar.consultante_nombre || '');
+        setPrecioBase(''); // no auto-computar al editar
       } else {
         setForm({
           consultante_id: null,
@@ -99,78 +99,20 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
           tipo_sesion_id: null,
           precio_total: '',
           monto_seña: '',
+          descuento_pct: '',
+          descuento_fijo: '',
         });
         setConsultanteSearch('');
+        setPrecioBase('');
       }
     }
   }, [open, reservaEditar, horaInicial]);
 
   useEffect(() => {
-    if (!profile?.empresaId) {
-      setTiposSesion([]);
-      return;
-    }
-
-    DatabaseService.obtenerTiposSesion(profile.empresaId).then(result => {
+    DatabaseService.obtenerTiposSesion(profile?.empresaId).then(result => {
       if (result.success) setTiposSesion(result.data as any[]);
     });
   }, [profile?.empresaId]);
-
-  // Cargar slots reales cuando cambia profesional, servicio o fecha
-  useEffect(() => {
-    const { profesional_id, tipo_sesion_id } = form;
-    if (!profesional_id || !tipo_sesion_id || !fecha || !profile?.empresaId) {
-      setSlots([]);
-      setDisponibilidadError(null);
-      return;
-    }
-    const servicioSeleccionado = tiposSesion.find(t => t.id === tipo_sesion_id);
-    const duracionMinutos = Number(servicioSeleccionado?.duracion_minutos || 0);
-    setDisponibilidadError(null);
-    setCargandoSlots(true);
-    fetch(`/api/disponibilidad?profesionalId=${profesional_id}&empresaId=${profile.empresaId}&servicioId=${tipo_sesion_id}&fecha=${fecha}&duracionMinutos=${duracionMinutos}`)
-      .then(async r => {
-        const json = await r.json();
-        if (!r.ok) {
-          setSlots([]);
-          // Fallback no bloqueante: no frenamos el alta si falla la verificacion de disponibilidad.
-          setDisponibilidadError(null);
-          return;
-        }
-        if (json.success) {
-          setSlots(json.data.slots ?? []);
-          setDisponibilidadError(null);
-        }
-      })
-      .catch(() => {
-        setSlots([]);
-        setDisponibilidadError(null);
-      })
-      .finally(() => setCargandoSlots(false));
-  }, [form.profesional_id, form.tipo_sesion_id, fecha, profile?.empresaId, tiposSesion]);
-
-  useEffect(() => {
-    if (!open || reservaEditar) return;
-
-    const disponibles = slots.filter(s => s.disponible);
-    if (disponibles.length === 0) return;
-
-    const horaPreferida = preferredHoraRef.current;
-
-    // Si la hora cliqueada existe en los slots, priorizarla siempre.
-    if (horaPreferida && disponibles.some(s => s.horaInicio === horaPreferida) && form.hora_inicio !== horaPreferida) {
-      setForm(prev => ({ ...prev, hora_inicio: horaPreferida }));
-      return;
-    }
-
-    const horaActualEsValida = disponibles.some(s => s.horaInicio === form.hora_inicio);
-    if (horaActualEsValida) return;
-
-    const sugerida = pickClosestSlot(disponibles, horaPreferida || form.hora_inicio || null);
-    if (!sugerida) return;
-
-    setForm(prev => ({ ...prev, hora_inicio: sugerida }));
-  }, [open, reservaEditar, slots, horaInicial, form.hora_inicio]);
 
   const buscarConsultante = (query: string) => {
     setConsultanteSearch(query);
@@ -190,63 +132,81 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
     setConsultantesFiltrados([]);
   };
 
-  const seleccionarServicio = (servicioId: string) => {
-    const s = tiposSesion.find(t => t.id === servicioId);
-    if (!s) { setForm(prev => ({ ...prev, tipo_sesion_id: null, precio_total: '', monto_seña: '' })); return; }
-    const monto = calcularMontoSena({ senaTipo: s.sena_tipo ?? 'monto', senaValor: s.sena_valor ?? 0, precio: s.precio ?? null });
-    setForm(prev => ({
-      ...prev,
-      tipo_sesion_id: servicioId,
-      precio_total:   s.precio?.toString() ?? '',
-      monto_seña:     monto > 0 ? monto.toString() : '',
-    }));
-  };
-
   const handleGuardar = async () => {
     if (!form.hora_inicio) { alert('Seleccioná la hora de inicio'); return; }
-    if (!form.tipo_sesion_id) { alert('Seleccioná un servicio'); return; }
     setGuardando(true);
 
-    let clienteId = form.consultante_id;
-    if (!clienteId && form.consultante_nombre) {
-      const r = await ConsultanteController.crearConsultante({
-        nombre_completo: form.consultante_nombre,
-        email: form.consultante_email,
-        telefono: form.consultante_telefono,
-      }, profile);
-      if (r.success) clienteId = (r as any).data?.id;
+    let consultanteId = form.consultante_id;
+    if (!consultanteId && form.consultante_nombre) {
+      if (form.consultante_email && profile?.empresaId) {
+        const res = await fetch('/api/admin/clientes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: form.consultante_email,
+            nombre: form.consultante_nombre,
+            telefono: form.consultante_telefono || undefined,
+            empresaId: profile.empresaId,
+          }),
+        });
+        const json = await res.json();
+        if (json.usuarioId) consultanteId = json.usuarioId;
+      } else {
+        const r = await ConsultanteController.crearConsultante({
+          nombre_completo: form.consultante_nombre,
+          email: form.consultante_email,
+          telefono: form.consultante_telefono,
+        }, profile);
+        if (r.success) consultanteId = (r as any).data?.id;
+      }
     }
 
-    if (!clienteId) { alert('Seleccioná o creá un cliente'); setGuardando(false); return; }
+    const esPropioTurno = form.profesional_id === profile?.profesionalId;
+    const estadoNuevo = reservaEditar ? reservaEditar.estado : (esPropioTurno ? 'confirmada' : 'pendiente');
 
-    // fecha + hora_inicio en timezone local → ISO UTC para almacenar
-    const fechaHoraInicio = new Date(`${fecha}T${form.hora_inicio}:00`).toISOString();
+    const reservaData = {
+      cliente_id: consultanteId,
+      consultante_id: consultanteId,
+      fecha,
+      hora_inicio: form.hora_inicio,
+      servicio_id: form.tipo_sesion_id,
+      precio_total: form.precio_total ? parseFloat(form.precio_total) : null,
+      monto_seña: form.monto_seña ? parseFloat(form.monto_seña) : null,
+      estado: estadoNuevo,
+    };
 
-    const res = await fetch('/api/reservas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        empresaId:      profile.empresaId,
-        clienteId,
-        profesionalId:  form.profesional_id,
-        servicioId:     form.tipo_sesion_id,
-        fechaHoraInicio,
-      }),
-    });
-    const json = await res.json();
+    const result = reservaEditar
+      ? await ReservaController.actualizarReserva(reservaEditar.id, reservaData, profile)
+      : await ReservaController.crearReserva(reservaData, form.profesional_id, profile);
 
     setGuardando(false);
-    if (json.success) {
-      const esClienteNuevo = !form.consultante_id && !!clienteId;
-      if (esClienteNuevo && onNuevoClienteCreado) {
-        onNuevoClienteCreado(clienteId, form.consultante_nombre, form.consultante_telefono);
+    if (result.success) {
+      const esClienteNuevo = !form.consultante_id && !!form.consultante_nombre && !!consultanteId;
+      if (!reservaEditar && esClienteNuevo && onNuevoClienteCreado) {
+        onNuevoClienteCreado(consultanteId, form.consultante_nombre, form.consultante_telefono);
       }
-      if (form.profesional_id !== profile?.profesionalId) {
-        alert(`La reserva fue enviada al gestor para que ${profesionales.find(p => p.id === form.profesional_id)?.nombre_completo || 'el profesional'} la confirme.`);
+      if (!esPropioTurno && !reservaEditar) {
+        alert(`La reserva fue enviada al gestor de reservas para que ${profesionales.find(p => p.id === form.profesional_id)?.nombre_completo || 'el profesional'} la confirme.`);
       }
+
+      // WhatsApp al cliente si tiene teléfono
+      const tel = form.consultante_telefono?.replace(/\D/g, '');
+      if (tel && !reservaEditar) {
+        const seña = parseFloat(form.monto_seña) || 0;
+        let msg = '';
+        if (seña > 0) {
+          msg = `Hola ${form.consultante_nombre || ''}, tu turno para el ${fecha} a las ${form.hora_inicio} está registrado. Para confirmarlo necesitamos una seña de $${seña}.`;
+        } else if (esPropioTurno) {
+          msg = `Hola ${form.consultante_nombre || ''}, tu turno para el ${fecha} a las ${form.hora_inicio} está confirmado. ¡Te esperamos!`;
+        }
+        if (msg) {
+          window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+      }
+
       onSaved();
     } else {
-      alert(json.error || 'Error al guardar');
+      alert((result as any).error || 'Error al guardar');
     }
   };
 
@@ -324,111 +284,59 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
             </div>
           )}
 
-          {/* Tipo de sesión — movido antes de hora para cargar slots */}
+          {/* Hora */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Hora de inicio *</label>
+            <select
+              value={form.hora_inicio}
+              onChange={e => setForm(prev => ({ ...prev, hora_inicio: e.target.value }))}
+              className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ borderColor: colors.border, color: colors.text }}
+            >
+              <option value="">Seleccionar hora</option>
+              {HORARIOS_DISPONIBLES.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
+
+          {/* Profesional — siempre visible */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Profesional</label>
+            <select
+              value={form.profesional_id}
+              onChange={e => setForm(prev => ({ ...prev, profesional_id: e.target.value }))}
+              className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ borderColor: colors.border, color: colors.text }}
+            >
+              {profesionales.map(p => <option key={p.id} value={p.id}>{p.nombre_completo}</option>)}
+            </select>
+          </div>
+
+          {/* Tipo de sesión — auto-rellena precio */}
           {tiposSesion.length > 0 && (
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Tipo de sesión</label>
               <select
                 value={form.tipo_sesion_id || ''}
-                onChange={e => seleccionarServicio(e.target.value)}
+                onChange={e => {
+                  const id = e.target.value || null;
+                  setForm(prev => ({ ...prev, tipo_sesion_id: id, descuento_pct: '', descuento_fijo: '' }));
+                  if (id) {
+                    const servicio = tiposSesion.find(t => t.id === id);
+                    setPrecioBase(servicio?.precio ? servicio.precio.toString() : '');
+                  } else {
+                    setPrecioBase('');
+                  }
+                }}
                 className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={{ borderColor: colors.border, color: colors.text }}
               >
                 <option value="">Sin especificar</option>
-                {tiposSesion.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre}{t.duracion_minutos ? ` (${t.duracion_minutos} min)` : ''}{t.precio ? ` · $${t.precio}` : ''}
-                  </option>
-                ))}
-              </select>
-              {disponibilidadError && (
-                <div
-                  className="mt-2 rounded-lg px-3 py-2 text-xs"
-                  style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}
-                >
-                  No se pudo validar disponibilidad del servicio. Podés guardar igual.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Hora — slots reales de disponibilidad */}
-          <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>
-              Hora de inicio *
-              {cargandoSlots && <span className="ml-2 text-xs font-normal" style={{ color: colors.textSecondary }}>Cargando disponibilidad...</span>}
-            </label>
-            {horaInicial && (
-              <p className="text-xs mb-2" style={{ color: colors.textSecondary }}>
-                Hora tomada desde Agenda: <span className="font-semibold" style={{ color: colors.text }}>{horaInicial}</span>
-              </p>
-            )}
-            {slots.length > 0 ? (
-              <div className="grid grid-cols-4 gap-1.5">
-                {slots.map(s => (
-                  <button
-                    key={s.horaInicio}
-                    type="button"
-                    disabled={!s.disponible}
-                    onClick={() => setForm(prev => ({ ...prev, hora_inicio: s.horaInicio }))}
-                    className="py-2 rounded-lg text-xs font-medium transition disabled:opacity-30 disabled:cursor-not-allowed"
-                    style={{
-                      background: form.hora_inicio === s.horaInicio ? colors.primary : s.disponible ? colors.primaryFaded : '#f3f4f6',
-                      color:      form.hora_inicio === s.horaInicio ? '#fff' : s.disponible ? colors.primary : '#9ca3af',
-                    }}
-                  >
-                    {s.horaInicio}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <select
-                value={form.hora_inicio}
-                onChange={e => setForm(prev => ({ ...prev, hora_inicio: e.target.value }))}
-                className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ borderColor: colors.border, color: colors.text }}
-              >
-                {form.hora_inicio && (
-                  <option value={form.hora_inicio}>
-                    {`${form.hora_inicio} (hora seleccionada en agenda)`}
-                  </option>
-                )}
-                <option value="" disabled={!!form.hora_inicio}>
-                  {form.tipo_sesion_id ? 'Sin disponibilidad para este día' : 'Seleccioná un servicio primero'}
-                </option>
-              </select>
-            )}
-          </div>
-
-          {/* Profesional */}
-          {profesionales.length > 1 && (
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Profesional</label>
-              <select
-                value={form.profesional_id}
-                onChange={e => setForm(prev => ({ ...prev, profesional_id: e.target.value }))}
-                className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ borderColor: colors.border, color: colors.text }}
-              >
-                {profesionales.map(p => <option key={p.id} value={p.id}>{p.nombre_completo}</option>)}
+                {tiposSesion.map(t => <option key={t.id} value={t.id}>{t.nombre}{t.precio ? ` · $${t.precio}` : ''}</option>)}
               </select>
             </div>
           )}
 
-          {/* Precio */}
-          <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Precio ($)</label>
-            <input
-              type="number"
-              value={form.precio_total}
-              onChange={e => setForm(prev => ({ ...prev, precio_total: e.target.value }))}
-              placeholder="2500"
-              className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              style={{ borderColor: colors.border }}
-            />
-          </div>
-
-          {/* Seña / depósito */}
+          {/* Seña / depósito — arriba de precio */}
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>
               Seña / depósito ($) <span className="font-normal text-xs" style={{ color: colors.textSecondary }}>(opcional)</span>
@@ -441,6 +349,56 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
               className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               style={{ borderColor: colors.border }}
             />
+          </div>
+
+          {/* Descuento */}
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: colors.text }}>Descuento</label>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-xs mb-1" style={{ color: colors.textSecondary }}>Porcentaje (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={form.descuento_pct}
+                  onChange={e => setForm(prev => ({ ...prev, descuento_pct: e.target.value }))}
+                  placeholder="0"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ borderColor: colors.border }}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs mb-1" style={{ color: colors.textSecondary }}>Monto fijo ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.descuento_fijo}
+                  onChange={e => setForm(prev => ({ ...prev, descuento_fijo: e.target.value }))}
+                  placeholder="0"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ borderColor: colors.border }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Precio */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Precio ($)</label>
+            <input
+              type="number"
+              value={form.precio_total}
+              onChange={e => setForm(prev => ({ ...prev, precio_total: e.target.value }))}
+              placeholder="0"
+              className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ borderColor: colors.border }}
+            />
+            {aCobrarenSesion !== null && (
+              <p className="text-xs mt-1.5 font-medium" style={{ color: colors.primary }}>
+                A cobrar en sesión: ${aCobrarenSesion}
+              </p>
+            )}
           </div>
 
           {/* Aviso si es para otro profesional */}

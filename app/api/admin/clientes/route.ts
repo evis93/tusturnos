@@ -44,10 +44,10 @@ export async function GET(req: NextRequest) {
       .select(`
         usuario_id,
         usuarios!inner(id, nombre_completo, email, telefono),
-        roles!inner(nombre)
+        roles!inner(rol)
       `)
       .eq('empresa_id', empresaId)
-      .eq('roles.nombre', 'cliente');
+      .eq('roles.rol', 'cliente');
 
     if (error) throw error;
 
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
     const { data: rolData, error: rolError } = await sb
       .from('roles')
       .select('id')
-      .eq('nombre', 'cliente')
+      .eq('rol', 'cliente')
       .maybeSingle();
 
     if (rolError || !rolData) {

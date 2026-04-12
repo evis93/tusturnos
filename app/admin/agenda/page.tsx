@@ -1,72 +1,82 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { ReservaController } from '@/src/controllers/ReservaController';
 import { ProfesionalController } from '@/src/controllers/ProfesionalController';
 import ModalReserva from '@/src/components/reservas/ModalReserva';
+import ModalPago from '@/src/components/reservas/ModalPago';
 import ModalFicha from '@/src/components/reservas/ModalFicha';
 import ModalAccesoCliente from '@/src/components/reservas/ModalAccesoCliente';
-import ModalCierreCaja from '@/src/components/agenda/ModalCierreCaja';
-import BadgeEstadoReserva from '@/src/components/reservas/BadgeEstadoReserva';
-import AccionesReserva from '@/src/components/reservas/AccionesReserva';
-import { ChevronLeft, ChevronRight, ClipboardList, LockKeyhole } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { supabase } from '@/src/config/supabase';
 
 const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-const HORARIOS = Array.from({ length: 13 }, (_, i) => i + 8); // 8–20 h
-
-function getHoraLocal(iso: string) {
-  return new Date(iso).getHours();
-}
-
-function formatHoraLocal(iso: string) {
-  return new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-}
+const HORARIOS = Array.from({ length: 13 }, (_, i) => i + 8); // 8-20h
 
 export default function AgendaPage() {
   const { profile } = useAuth();
-  const { colors }  = useTheme();
+  const { colors } = useTheme();
 
   const hoy = new Date().toISOString().split('T')[0];
-  const [selectedDate, setSelectedDate]   = useState(hoy);
-  const [reservas, setReservas]           = useState<any[]>([]);
-  const [profesionales, setProfesionales] = useState<any[]>([]);
-  const [loading, setLoading]             = useState(true);
-  const [modalOpen, setModalOpen]         = useState(false);
-  const [fichaModal, setFichaModal]       = useState<{ open: boolean; reserva: any | null }>({ open: false, reserva: null });
-  const [horaSeleccionada, setHoraSeleccionada] = useState<string | null>(null);
-  const [cierreCajaOpen, setCierreCajaOpen]     = useState(false);
+  const [selectedDate, setSelectedDate] = useState(hoy);
 
+  useEffect(() => {
+    localStorage.setItem('agenda_fecha_seleccionada', selectedDate);
+  }, [selectedDate]);
+  const [reservas, setReservas] = useState<any[]>([]);
+  const [profesionales, setProfesionales] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [pagoModal, setPagoModal] = useState<{ open: boolean; reserva: any | null }>({ open: false, reserva: null });
+  const [fichaModal, setFichaModal] = useState<{ open: boolean; reserva: any | null }>({ open: false, reserva: null });
+  const [editingReserva, setEditingReserva] = useState<any>(null);
+  const [horaSeleccionada, setHoraSeleccionada] = useState<string | null>(null);
+
+
+  // Acceso cliente
   const [accesoModal, setAccesoModal] = useState<{
-    open: boolean; clienteId: string; clienteNombre: string; clienteTelefono: string;
+    open: boolean;
+    clienteId: string;
+    clienteNombre: string;
+    clienteTelefono: string;
   }>({ open: false, clienteId: '', clienteNombre: '', clienteTelefono: '' });
 
+  // Hora actual para indicador (se actualiza cada minuto)
   const [horaActual, setHoraActual] = useState(new Date().getHours());
   useEffect(() => {
-    const id = setInterval(() => setHoraActual(new Date().getHours()), 60000);
-    return () => clearInterval(id);
+    const interval = setInterval(() => setHoraActual(new Date().getHours()), 60000);
+    return () => clearInterval(interval);
   }, []);
 
+  const [fichasCount, setFichasCount] = useState(0);
+
   const cargarReservas = useCallback(async () => {
-    if (!profile?.empresaId) return;
     setLoading(true);
-    const desde = `${selectedDate}T00:00:00`;
-    const hasta  = `${selectedDate}T23:59:59`;
-    const res  = await fetch(`/api/reservas?empresaId=${profile.empresaId}&fechaDesde=${desde}&fechaHasta=${hasta}`);
-    const json = await res.json();
-    if (json.success) setReservas(json.data ?? []);
+    const [result, fichasResult] = await Promise.all([
+      ReservaController.obtenerReservasPorFecha(selectedDate, profile?.profesionalId, profile),
+      profile?.profesionalId
+        ? supabase.from('fichas').select('id', { count: 'exact', head: true }).eq('fecha', selectedDate).eq('profesional_id', profile.profesionalId)
+        : Promise.resolve({ count: 0 }),
+    ]);
+    if (result.success) setReservas((result as any).data || []);
+    setFichasCount((fichasResult as any).count ?? 0);
     setLoading(false);
-  }, [selectedDate, profile?.empresaId]);
+  }, [selectedDate, profile]);
 
   useEffect(() => { cargarReservas(); }, [cargarReservas]);
 
   useEffect(() => {
     ProfesionalController.obtenerProfesionales(profile).then(r => {
-      if (r.success && 'data' in r) setProfesionales((r as any).data || []);
+      if (r.success && 'data' in r) setProfesionales(r.data || []);
     });
   }, [profile]);
+
+  // Nombre del profesional actual (informativo)
+  const profesionalActual = profesionales.find(p => p.id === profile?.profesionalId);
 
   const diasSemana = Array.from({ length: 7 }, (_, i) => {
     const base = new Date(selectedDate + 'T12:00:00');
@@ -80,18 +90,29 @@ export default function AgendaPage() {
     return `${DIAS_SEMANA[f.getDay()]}, ${f.getDate()} de ${MESES[f.getMonth()]}`;
   })();
 
-  const getReservasParaHora = (hora: number) =>
-    reservas.filter(r => getHoraLocal(r.fecha_hora_inicio) === hora);
+  const getReservaParaHora = (hora: number) =>
+    reservas.find(r => r.hora_inicio && parseInt(r.hora_inicio.split(':')[0]) === hora);
 
-  const getReservaStyle = (estado: string) => {
-    if (estado === 'CONFIRMADA' || estado === 'COMPLETADA') {
-      return { background: colors.primaryFaded, borderLeft: `4px solid ${colors.primary}` };
-    }
-    if (estado === 'CANCELADA_CLIENTE' || estado === 'CANCELADA_PROFESIONAL' || estado === 'RECHAZADA') {
-      return { background: '#f3f4f6', borderLeft: '4px solid #9ca3af' };
-    }
-    // PENDIENTE / CAMBIO_SOLICITADO
-    return { background: '#fffbeb', borderLeft: '4px solid #f59e0b' };
+  const handleNuevaReserva = (hora?: number) => {
+    setEditingReserva(null);
+    setHoraSeleccionada(hora ? `${hora.toString().padStart(2, '0')}:00` : null);
+    setModalOpen(true);
+  };
+
+  const handleEditarReserva = (reserva: any) => {
+    setEditingReserva(reserva);
+    setHoraSeleccionada(null);
+    setModalOpen(true);
+  };
+
+  const handleEliminarReserva = async (id: string) => {
+    if (!confirm('¿Eliminar esta reserva?')) return;
+    await ReservaController.eliminarReserva(id, profile);
+    cargarReservas();
+  };
+
+  const handleNuevoClienteCreado = (clienteId: string, clienteNombre: string, clienteTelefono: string) => {
+    setAccesoModal({ open: true, clienteId, clienteNombre, clienteTelefono });
   };
 
   const navFecha = (dir: number) => {
@@ -100,24 +121,46 @@ export default function AgendaPage() {
     setSelectedDate(d.toISOString().split('T')[0]);
   };
 
-  const handleNuevoClienteCreado = (clienteId: string, clienteNombre: string, clienteTelefono: string) => {
-    setAccesoModal({ open: true, clienteId, clienteNombre, clienteTelefono });
+  // Color del bloque según estado y pago
+  const getReservaStyle = (reserva: any) => {
+    if (reserva.estado === 'cancelada') {
+      return {
+        background: '#f3f4f6',
+        borderLeft: `4px solid #9ca3af`,
+      };
+    }
+    if (reserva.pagado) {
+      return {
+        background: colors.primaryFaded,
+        borderLeft: `4px solid ${colors.primary}`,
+      };
+    }
+    return {
+      background: '#FFF3CD',
+      borderLeft: `4px solid ${colors.warning}`,
+    };
   };
+
+  const esHoySeleccionado = selectedDate === hoy;
+
+  const cajaCerrada = useMemo(() => {
+    if (fichasCount === 0) return false;
+    return reservas.filter(r => r.estado === 'confirmada').length === 0;
+  }, [fichasCount, reservas]);
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center justify-between mb-1">
-          <h1 className="text-2xl font-bold" style={{ color: colors.text }}>Agenda</h1>
-          <button
-            onClick={() => setCierreCajaOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition hover:opacity-80"
-            style={{ background: colors.primaryFaded, color: colors.primary }}
-          >
-            <LockKeyhole size={14} />
-            cerrar caja
-          </button>
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: colors.text }}>Agenda</h1>
+            {profesionalActual && (
+              <p className="text-xs mt-0.5 lowercase" style={{ color: colors.textSecondary }}>
+                {profesionalActual.nombre_completo}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Navegación de días */}
@@ -133,7 +176,7 @@ export default function AgendaPage() {
                 className="flex flex-col items-center px-3 py-2 rounded-xl transition-all text-center flex-1 max-w-[64px]"
                 style={{
                   background: d.fecha === selectedDate ? colors.primary : 'transparent',
-                  color:      d.fecha === selectedDate ? '#fff' : colors.text,
+                  color: d.fecha === selectedDate ? '#fff' : colors.text,
                 }}
               >
                 <span className="text-xs opacity-70">{d.diaSemana}</span>
@@ -151,6 +194,17 @@ export default function AgendaPage() {
         <p className="text-sm mt-2 capitalize" style={{ color: colors.textSecondary }}>{fechaFormateada}</p>
       </div>
 
+      {/* Banner caja cerrada */}
+      {!loading && cajaCerrada && (
+        <div className="mx-6 mb-3 flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: '#d1fae5', color: '#065f46' }}>
+          <CheckCircle2 size={18} className="shrink-0" />
+          <div>
+            <p className="text-sm font-semibold">Caja cerrada</p>
+            <p className="text-xs opacity-80">Todas las sesiones del día fueron cobradas y archivadas.</p>
+          </div>
+        </div>
+      )}
+
       {/* Timeline */}
       <div className="flex-1 overflow-auto px-6 pb-6">
         {loading ? (
@@ -160,101 +214,94 @@ export default function AgendaPage() {
         ) : (
           <div className="space-y-1">
             {HORARIOS.map(hora => {
-              const rsHora  = getReservasParaHora(hora);
-              const horaLabel       = `${hora.toString().padStart(2, '0')}:00`;
-              const mostrarLinea    = selectedDate === hoy && horaActual === hora;
+              const reserva = getReservaParaHora(hora);
+              const horaLabel = `${hora.toString().padStart(2, '0')}:00`;
+              const mostrarLineaHora = esHoySeleccionado && horaActual === hora;
 
               return (
                 <div key={hora} className="flex items-stretch min-h-[56px] relative">
                   <span className="w-16 text-xs pt-2 shrink-0" style={{ color: colors.textMuted }}>{horaLabel}</span>
                   <div className="flex-1 border-l pl-3 relative" style={{ borderColor: colors.borderLight }}>
 
-                    {mostrarLinea && (
+                    {/* Indicador de hora actual (Gap #8) */}
+                    {mostrarLineaHora && (
                       <div className="absolute -left-px top-0 right-0 flex items-center pointer-events-none z-10">
                         <div className="w-2 h-2 rounded-full flex-shrink-0 -ml-1" style={{ background: '#ef4444' }} />
                         <div className="flex-1 h-px" style={{ background: '#ef4444' }} />
                       </div>
                     )}
 
-                    {rsHora.length > 0 ? (
-                      <div className="space-y-2 py-1">
-                        {rsHora.map(reserva => (
-                          <div
-                            key={reserva.id}
-                            className="rounded-xl px-4 py-3"
-                            style={getReservaStyle(reserva.estado)}
-                          >
-                            {/* Info + badge */}
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm truncate" style={{ color: colors.text }}>
-                                  {reserva.cliente_nombre || 'Sin nombre'}
-                                </p>
-                                <p className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
-                                  {formatHoraLocal(reserva.fecha_hora_inicio)}
-                                  {reserva.servicio_nombre ? ` · ${reserva.servicio_nombre}` : ''}
-                                  {reserva.sena_monto > 0 ? ` · Seña $${reserva.sena_monto}` : ''}
-                                </p>
-                                {reserva.profesional_nombre && (
-                                  <p className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
-                                    Prof: {reserva.profesional_nombre}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                                {/* Ficha — solo si ya está confirmada */}
-                                {(reserva.estado === 'CONFIRMADA' || reserva.estado === 'COMPLETADA') && (
-                                  <button
-                                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg"
-                                    style={{ background: colors.primaryFaded, color: colors.primary }}
-                                    onClick={() => setFichaModal({ open: true, reserva })}
-                                  >
-                                    <ClipboardList size={12} />
-                                    Ficha
-                                  </button>
-                                )}
-                                {/* Acceso app */}
-                                {reserva.cliente_usuario_id && (
-                                  <button
-                                    className="text-xs px-2.5 py-1 rounded-lg"
-                                    style={{ background: colors.primaryFaded, color: colors.primary }}
-                                    title="Dar acceso a la app al cliente"
-                                    onClick={() => setAccesoModal({
-                                      open: true,
-                                      clienteId:       reserva.cliente_usuario_id,
-                                      clienteNombre:   reserva.cliente_nombre || '',
-                                      clienteTelefono: reserva.cliente_telefono || '',
-                                    })}
-                                  >
-                                    📱
-                                  </button>
-                                )}
-                                <BadgeEstadoReserva estado={reserva.estado} />
-                              </div>
-                            </div>
-
-                            {/* Acciones de estado */}
-                            <AccionesReserva
-                              reserva={{
-                                id:                  reserva.id,
-                                estado:              reserva.estado,
-                                clienteNombre:       reserva.cliente_nombre,
-                                clienteTelefono:     reserva.cliente_telefono,
-                                profesionalNombre:   reserva.profesional_nombre,
-                                profesionalTelefono: reserva.profesional_telefono,
-                                servicioNombre:      reserva.servicio_nombre,
-                                fechaHoraInicio:     reserva.fecha_hora_inicio,
-                                empresaSlug:         reserva.empresa_slug,
-                              }}
-                              onActualizado={cargarReservas}
-                              modoProfesional={false}
-                            />
+                    {reserva ? (
+                      <div
+                        className="rounded-xl px-4 py-3 cursor-pointer hover:opacity-90 transition"
+                        style={getReservaStyle(reserva)}
+                        onClick={() => handleEditarReserva(reserva)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-sm" style={{ color: reserva.estado === 'cancelada' ? '#6b7280' : colors.text }}>
+                              {reserva.consultante_nombre || 'Sin nombre'}
+                              {reserva.estado === 'cancelada' && (
+                                <span className="ml-2 text-xs font-normal">(cancelada)</span>
+                              )}
+                            </p>
+                            <p className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+                              {reserva.hora_inicio?.substring(0, 5)} · {reserva.estado}
+                              {reserva.servicio_nombre ? ` · ${reserva.servicio_nombre}` : ''}
+                            </p>
                           </div>
-                        ))}
+                          <div className="flex gap-2 flex-wrap justify-end">
+                            {/* Ficha */}
+                            <button
+                              className="flex items-center gap-1 text-xs px-3 py-1 rounded-lg"
+                              style={{ background: colors.primaryFaded, color: colors.primary }}
+                              onClick={e => { e.stopPropagation(); setFichaModal({ open: true, reserva }); }}
+                            >
+                              <ClipboardList size={13} />
+                              Ficha
+                            </button>
+                            {/* Cobrar */}
+{reserva.estado !== 'cancelada' && (
+                              <button
+                                className="text-xs px-3 py-1 rounded-lg"
+                                style={{ background: colors.primary, color: '#fff' }}
+                                onClick={e => { e.stopPropagation(); setPagoModal({ open: true, reserva }); }}
+                              >
+                                Cobrar
+                              </button>
+                            )}
+                            {/* Acceso app para el cliente */}
+                            {reserva.estado !== 'cancelada' && (reserva.consultante_id || reserva.cliente_id) && (
+                              <button
+                                className="text-xs px-3 py-1 rounded-lg"
+                                style={{ background: colors.primaryFaded, color: colors.primary }}
+                                title="Dar acceso a la app al cliente"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setAccesoModal({
+                                    open: true,
+                                    clienteId: reserva.consultante_id || reserva.cliente_id,
+                                    clienteNombre: reserva.consultante_nombre || '',
+                                    clienteTelefono: reserva.consultante_telefono || '',
+                                  });
+                                }}
+                              >
+                                📱 App
+                              </button>
+                            )}
+                            {/* Eliminar */}
+                            <button
+                              className="text-xs px-3 py-1 rounded-lg bg-red-50 text-red-600"
+                              onClick={e => { e.stopPropagation(); handleEliminarReserva(reserva.id); }}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <button
-                        onClick={() => { setHoraSeleccionada(horaLabel); setModalOpen(true); }}
+                        onClick={() => handleNuevaReserva(hora)}
                         className="w-full h-12 text-left text-xs rounded-xl px-3 hover:bg-gray-50 transition text-gray-300 hover:text-gray-400"
                       >
                         + Agregar reserva
@@ -277,8 +324,18 @@ export default function AgendaPage() {
           onNuevoClienteCreado={handleNuevoClienteCreado}
           fecha={selectedDate}
           horaInicial={horaSeleccionada}
-          reservaEditar={null}
+          reservaEditar={editingReserva}
           profesionales={profesionales}
+          profile={profile}
+        />
+      )}
+
+      {pagoModal.open && pagoModal.reserva && (
+        <ModalPago
+          open={pagoModal.open}
+          onClose={() => setPagoModal({ open: false, reserva: null })}
+          onSaved={() => { setPagoModal({ open: false, reserva: null }); cargarReservas(); }}
+          reserva={pagoModal.reserva}
           profile={profile}
         />
       )}
@@ -304,16 +361,6 @@ export default function AgendaPage() {
         />
       )}
 
-      {cierreCajaOpen && (
-        <ModalCierreCaja
-          open={cierreCajaOpen}
-          onClose={() => setCierreCajaOpen(false)}
-          onCajaActualizada={() => { setCierreCajaOpen(false); cargarReservas(); }}
-          fecha={selectedDate}
-          reservas={reservas}
-          profile={profile}
-        />
-      )}
     </div>
   );
 }

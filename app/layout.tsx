@@ -4,11 +4,12 @@ import './globals.css';
 import { AuthProvider } from '@/src/context/AuthContext';
 import { BusinessProvider } from '@/src/context/BusinessContext';
 import { ThemeProvider } from '@/src/context/ThemeContext';
+import { SucursalProvider } from '@/src/context/SucursalContext';
 
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope', weight: ['400', '600', '700', '800'] });
 
 export const metadata: Metadata = {
-  title: 'Mensana',
+  title: 'Tus Turnos',
   description: 'Sistema de gestión de turnos y reservas',
 };
 
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <BusinessProvider>
           <AuthProvider>
             <ThemeProvider>
-              {children}
+              <SucursalProvider>
+                {children}
+              </SucursalProvider>
             </ThemeProvider>
           </AuthProvider>
         </BusinessProvider>

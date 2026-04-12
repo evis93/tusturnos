@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     const { data: rolData, error: rolError } = await sb
       .from('roles')
       .select('id')
-      .eq('nombre', rol)
+      .eq('rol', rol)
       .maybeSingle();
 
     if (rolError || !rolData) {
@@ -136,7 +136,7 @@ export async function PUT(req: NextRequest) {
       const { data: rolData } = await sb
         .from('roles')
         .select('id')
-        .eq('nombre', rol)
+        .eq('rol', rol)
         .maybeSingle();
 
       if (rolData) {

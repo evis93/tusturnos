@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { DatabaseService } from '@/src/services/database.service';
-import { TrendingUp, ChevronLeft, ChevronRight, Clock, Users, Sparkles, Eye, EyeOff, LoaderCircle } from 'lucide-react';
+import { TrendingUp, ChevronLeft, ChevronRight, Clock, Users, UserRound, Sparkles, LoaderCircle, QrCode } from 'lucide-react';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -88,6 +88,32 @@ export default function AdminPage() {
         {loading && <LoaderCircle size={16} className="animate-spin inline ml-2" />}
       </h1>
 
+      {/* Accesos rápidos */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border mb-6" style={{ borderColor: colors.border }}>
+        <h2 className="text-base font-semibold mb-4" style={{ color: colors.text }}>Configuración rápida</h2>
+        <div className="space-y-1">
+          {[
+            { href: '/admin/horarios', icon: <Clock size={18} />, label: 'Horarios de Atención' },
+            { href: '/admin/profesionales', icon: <Users size={18} />, label: 'Profesionales' },
+            { href: '/admin/servicios', icon: <Sparkles size={18} />, label: 'Servicios' },
+            { href: '/admin/clientes', icon: <UserRound size={18} />, label: 'Clientes' },
+            { href: '/admin/qr', icon: <QrCode size={18} />, label: 'Código QR' },
+          ].map(item => (
+            <a
+              key={item.href}
+              href={item.href}
+              className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-50 transition group"
+            >
+              <span style={{ color: colors.primary }}>{item.icon}</span>
+              <span className="flex-1 text-sm font-medium" style={{ color: colors.text }}>
+                {item.label}
+              </span>
+              <ChevronRight size={16} className="text-gray-400 group-hover:text-gray-600 transition" />
+            </a>
+          ))}
+        </div>
+      </div>
+
       {/* Totales */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-xl p-5 shadow-sm border" style={{ borderColor: colors.border }}>
@@ -112,7 +138,7 @@ export default function AdminPage() {
       </div>
 
       {/* Selector de mes + mini calendario */}
-      <div className="bg-white rounded-xl p-5 shadow-sm border mb-6" style={{ borderColor: colors.border }}>
+      <div className="bg-white rounded-xl p-5 shadow-sm border" style={{ borderColor: colors.border }}>
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => cambiarMes(-1)} className="p-2 rounded-lg hover:bg-gray-100 transition">
             <ChevronLeft size={20} style={{ color: colors.text }} />
@@ -144,30 +170,6 @@ export default function AdminPage() {
               </button>
             );
           })}
-        </div>
-      </div>
-
-      {/* Accesos rápidos */}
-      <div className="bg-white rounded-xl p-5 shadow-sm border" style={{ borderColor: colors.border }}>
-        <h2 className="text-base font-semibold mb-4" style={{ color: colors.text }}>Configuración rápida</h2>
-        <div className="space-y-1">
-          {[
-            { href: '/admin/horarios', icon: <Clock size={18} />, label: 'Horarios de Atención' },
-            { href: '/admin/profesionales', icon: <Users size={18} />, label: 'Profesionales' },
-            { href: '/admin/servicios', icon: <Sparkles size={18} />, label: 'Servicios' },
-          ].map(item => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-50 transition group"
-            >
-              <span style={{ color: colors.primary }}>{item.icon}</span>
-              <span className="flex-1 text-sm font-medium" style={{ color: colors.text }}>
-                {item.label}
-              </span>
-              <ChevronRight size={16} className="text-gray-400 group-hover:text-gray-600 transition" />
-            </a>
-          ))}
         </div>
       </div>
     </div>

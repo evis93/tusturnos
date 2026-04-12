@@ -34,7 +34,7 @@ interface ThemeContextType {
   loading: boolean;
 }
 
-const DEFAULT_LOGO = '/images/logoMensana.png';
+const DEFAULT_LOGO = '/images/logoturnos.png';
 
 // Logos locales por empresa — evita depender del archivo en Supabase Storage
 const LOCAL_LOGOS: Record<string, string> = {

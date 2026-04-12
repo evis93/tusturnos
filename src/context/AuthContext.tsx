@@ -167,6 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setLoading(false);
             return prev;
           }
+          setLoading(true);
           fetchProfile(session.user.id);
           return prev;
         });
@@ -183,12 +184,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { success: false, error };
+      if (error) {
+        setLoading(false);
+        return { success: false, error };
+      }
+      // No apagamos loading aquí: onAuthStateChange → fetchProfile lo hará
+      // cuando el perfil esté disponible.
       return { success: true, data };
     } catch (e: any) {
-      return { success: false, error: e };
-    } finally {
       setLoading(false);
+      return { success: false, error: e };
     }
   };
 

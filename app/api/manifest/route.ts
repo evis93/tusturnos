@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
   // También intentamos extraer el slug del host directamente (por si el
   // rewrite no propagó los custom headers en algún edge case)
   let slug = tenantSlug;
-  if (!slug && host.endsWith('.mensana.com.ar')) {
+  if (!slug && host.endsWith('.tusturnos.ar')) {
     slug = host.split('.')[0];
   }
 
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     branding = await fetchBrandingByDomain(customDomain);
   }
 
-  const appName = branding?.nombre ?? 'Mensana';
+  const appName = branding?.nombre ?? 'Tus Turnos';
   const shortName = appName.length > 12 ? appName.split(' ')[0] : appName;
   const themeColor = branding?.color_primary ?? '#3b82f6';
   const bgColor = branding?.color_background ?? '#f8fbff';
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
           ]
         : [
             {
-              src: '/images/logoMensana.png',
+              src: '/images/logoturnos.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any maskable',

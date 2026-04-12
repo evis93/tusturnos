@@ -3,141 +3,206 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { RefreshCw } from 'lucide-react';
+import { ReservaController } from '@/src/controllers/ReservaController';
+import ModalPago from '@/src/components/reservas/ModalPago';
+import { RefreshCw, MessageCircle, Check, X } from 'lucide-react';
 import { clsx } from 'clsx';
-import BadgeEstadoReserva from '@/src/components/reservas/BadgeEstadoReserva';
-import AccionesReserva from '@/src/components/reservas/AccionesReserva';
-import type { ReservaEstado } from '@/src/types/reservas';
 
-const TABS: { label: string; estados: ReservaEstado[] }[] = [
-  { label: 'Pendientes',  estados: ['PENDIENTE', 'CAMBIO_SOLICITADO'] },
-  { label: 'Confirmadas', estados: ['CONFIRMADA'] },
-  { label: 'Historial',   estados: ['COMPLETADA', 'RECHAZADA', 'CANCELADA_CLIENTE', 'CANCELADA_PROFESIONAL'] },
-];
+const TABS = ['Pendientes', 'Confirmadas'];
 
-function formatearFechaHora(iso: string) {
-  return new Date(iso).toLocaleString('es-AR', {
-    weekday: 'short', day: 'numeric', month: 'short',
-    hour: '2-digit', minute: '2-digit',
-  });
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function formatearFecha(fecha: string) {
+  const [, m, d] = fecha.split('-');
+  return `${parseInt(d)} de ${MESES[parseInt(m) - 1]}`;
 }
 
 export default function GestionReservasPage() {
   const { profile } = useAuth();
-  const { colors }  = useTheme();
+  const { colors } = useTheme();
 
-  const [reservas, setReservas]   = useState<any[]>([]);
-  const [loading, setLoading]     = useState(true);
   const [activeTab, setActiveTab] = useState(0);
+  const [reservas, setReservas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pagoModal, setPagoModal] = useState<{ open: boolean; reserva: any | null }>({ open: false, reserva: null });
 
-  const cargar = useCallback(async () => {
-    if (!profile?.empresaId) return;
+  const [fechaAgenda] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('agenda_fecha_seleccionada') || new Date().toISOString().split('T')[0];
+    }
+    return new Date().toISOString().split('T')[0];
+  });
+
+  const cargarReservas = useCallback(async () => {
     setLoading(true);
-    const res  = await fetch(`/api/reservas?empresaId=${profile.empresaId}`);
-    const json = await res.json();
-    if (json.success) setReservas(json.data ?? []);
+    const result = await ReservaController.obtenerTodas(profile);
+    if (result.success) setReservas((result as any).data || []);
     setLoading(false);
-  }, [profile?.empresaId]);
+  }, [profile]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { cargarReservas(); }, [cargarReservas]);
 
-  const filtradas = useMemo(() => {
-    const estados = TABS[activeTab].estados;
-    return reservas.filter(r => estados.includes(r.estado));
+  const reservasFiltradas = useMemo(() => {
+    if (activeTab === 0) return reservas.filter(r => r.estado === 'pendiente');
+    return reservas.filter(r => r.estado === 'confirmada');
   }, [reservas, activeTab]);
 
-  const pendientesCount = useMemo(
-    () => reservas.filter(r => r.estado === 'PENDIENTE' || r.estado === 'CAMBIO_SOLICITADO').length,
-    [reservas]
-  );
+  const handleConfirmar = async (id: string) => {
+    await ReservaController.actualizarEstado(id, 'confirmada', profile);
+    cargarReservas();
+  };
+
+  const handleRechazar = async (id: string) => {
+    if (!confirm('¿Cancelar esta reserva?')) return;
+    await ReservaController.actualizarEstado(id, 'cancelada', profile);
+    cargarReservas();
+  };
+
+  const handleWhatsApp = (reserva: any) => {
+    const tel = reserva.consultante?.telefono || '';
+    const msg = `Hola ${reserva.consultante?.nombre || ''}, tu reserva para el ${reserva.fecha} a las ${reserva.hora_inicio} ha sido confirmada.`;
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const estadoColor: Record<string, string> = {
+    pendiente: '#FFF3CD',
+    confirmada: '#d1fae5',
+    cancelada: '#fee2e2',
+    completada: '#e0e7ff',
+  };
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold" style={{ color: colors.text }}>Gestión de Reservas</h1>
-        <button onClick={cargar} className="p-2 rounded-lg hover:bg-gray-100 transition">
+        <button onClick={cargarReservas} className="p-2 rounded-lg hover:bg-gray-100 transition">
           <RefreshCw size={18} style={{ color: colors.textSecondary }} />
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
-        {TABS.map((tab, i) => (
-          <button
-            key={tab.label}
-            onClick={() => setActiveTab(i)}
-            className={clsx(
-              'flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition',
-              activeTab === i ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            )}
-            style={activeTab === i ? { color: colors.primary } : {}}
-          >
-            {tab.label}
-            {i === 0 && pendientesCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-white font-bold bg-red-500"
-                style={{ fontSize: '10px', padding: '0 4px' }}>
-                {pendientesCount}
-              </span>
-            )}
-          </button>
-        ))}
+      <div className="flex flex-col gap-2 mb-6">
+        <p className="text-xs font-medium" style={{ color: colors.textSecondary }}>
+          {formatearFecha(fechaAgenda)}
+        </p>
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+          {TABS.map((tab, i) => {
+            const estado = i === 0 ? 'pendiente' : 'confirmada';
+            const count = reservas.filter(r => r.estado === estado && r.fecha === fechaAgenda).length;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(i)}
+                className={clsx('flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition', activeTab === i ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700')}
+                style={activeTab === i ? { color: colors.primary } : {}}
+              >
+                {tab}
+                {count > 0 && (
+                  <span
+                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-white font-bold"
+                    style={{ background: i === 0 ? '#ef4444' : colors.success, fontSize: '10px', padding: '0 4px' }}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
         </div>
-      ) : filtradas.length === 0 ? (
+      ) : reservasFiltradas.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-4xl mb-3">📋</p>
-          <p style={{ color: colors.textSecondary }}>No hay reservas {TABS[activeTab].label.toLowerCase()}</p>
+          <p style={{ color: colors.textSecondary }}>No hay reservas {TABS[activeTab].toLowerCase()}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filtradas.map(r => (
+          {reservasFiltradas.map(reserva => (
             <div
-              key={r.id}
+              key={reserva.id}
               className="bg-white rounded-xl border p-4"
               style={{ borderColor: colors.border, borderLeft: `4px solid ${colors.primary}` }}
             >
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate" style={{ color: colors.text }}>
-                    {r.cliente_nombre}
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-semibold" style={{ color: colors.text }}>
+                    {reserva.consultante?.nombre || reserva.consultante_nombre || 'Sin nombre'}
                   </p>
                   <p className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
-                    {r.servicio_nombre} · {formatearFechaHora(r.fecha_hora_inicio)}
+                    {reserva.fecha} · {reserva.hora_inicio?.substring(0, 5)}
+                    {reserva.profesional?.nombre ? ` · ${reserva.profesional.nombre}` : ''}
                   </p>
-                  <p className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
-                    Prof: {r.profesional_nombre}
-                  </p>
-                  {r.sena_monto > 0 && (
-                    <p className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
-                      Seña: ${r.sena_monto} · {r.sena_estado}
+                  {(reserva.servicio || reserva.tipo_sesion) && (
+                    <p className="text-xs mt-0.5 font-medium" style={{ color: colors.primary }}>
+                      {reserva.servicio || reserva.tipo_sesion}
+                    </p>
+                  )}
+                  {reserva.precio_total != null && (
+                    <p className="text-sm font-medium mt-1" style={{ color: colors.primary }}>
+                      ${reserva.precio_total}
                     </p>
                   )}
                 </div>
-                <BadgeEstadoReserva estado={r.estado} />
+                <span
+                  className="text-xs px-2 py-1 rounded-full font-medium"
+                  style={{ background: estadoColor[reserva.estado] || '#f3f4f6' }}
+                >
+                  {reserva.estado}
+                </span>
               </div>
 
-              <AccionesReserva
-                reserva={{
-                  id:                  r.id,
-                  estado:              r.estado,
-                  clienteNombre:       r.cliente_nombre,
-                  clienteTelefono:     r.cliente_telefono,
-                  profesionalNombre:   r.profesional_nombre,
-                  profesionalTelefono: r.profesional_telefono,
-                  servicioNombre:      r.servicio_nombre,
-                  fechaHoraInicio:     r.fecha_hora_inicio,
-                  empresaSlug:         r.empresa_slug,
-                }}
-                onActualizado={cargar}
-                modoProfesional={false}
-              />
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {reserva.estado === 'pendiente' && (
+                  <>
+                    <button
+                      onClick={() => handleConfirmar(reserva.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+                      style={{ background: colors.success }}
+                    >
+                      <Check size={12} /> Confirmar
+                    </button>
+                    <button
+                      onClick={() => handleRechazar(reserva.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600"
+                    >
+                      <X size={12} /> Rechazar
+                    </button>
+                  </>
+                )}
+<button
+                    onClick={() => setPagoModal({ open: true, reserva })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+                    style={{ background: colors.primary }}
+                  >
+                    💰 Registrar pago
+                  </button>
+                {(reserva.consultante?.telefono || reserva.consultante_telefono) && (
+                  <button
+                    onClick={() => handleWhatsApp(reserva)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-50 text-green-700"
+                  >
+                    <MessageCircle size={12} /> WhatsApp
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
+      )}
+
+      {pagoModal.open && pagoModal.reserva && (
+        <ModalPago
+          open={pagoModal.open}
+          onClose={() => setPagoModal({ open: false, reserva: null })}
+          onSaved={() => { setPagoModal({ open: false, reserva: null }); cargarReservas(); }}
+          reserva={pagoModal.reserva}
+          profile={profile}
+        />
       )}
     </div>
   );
