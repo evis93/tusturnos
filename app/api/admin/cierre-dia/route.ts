@@ -31,21 +31,44 @@ export async function GET(req: NextRequest) {
     const hoy = new Date().toISOString().split('T')[0]
 
     // Reservas PENDIENTES de hoy para esta empresa
-    const { data: pendientes, error } = await sb
-      .from('v_reservas_detalle')
-      .select('id, cliente_nombre, servicio_nombre, fecha_hora_inicio, profesional_nombre')
+    const { data: reservasRaw, error } = await sb
+      .from('reservas')
+      .select('id, cliente_id, profesional_id, servicio_id, hora_inicio')
       .eq('empresa_id', empresaId)
       .eq('estado', 'PENDIENTE')
-      .gte('fecha_hora_inicio', hoy + 'T00:00:00Z')
-      .lte('fecha_hora_inicio', hoy + 'T23:59:59Z')
-      .order('fecha_hora_inicio')
+      .gte('hora_inicio', hoy + 'T00:00:00Z')
+      .lte('hora_inicio', hoy + 'T23:59:59Z')
+      .order('hora_inicio')
 
     if (error) throw error
 
+    const reservasBase = reservasRaw ?? []
+    const clienteIds    = [...new Set(reservasBase.map((r: any) => r.cliente_id).filter(Boolean))]
+    const profesionalIds = [...new Set(reservasBase.map((r: any) => r.profesional_id).filter(Boolean))]
+    const servicioIds   = [...new Set(reservasBase.map((r: any) => r.servicio_id).filter(Boolean))]
+
+    const [clientesRes, profesionalesRes, serviciosRes] = await Promise.all([
+      clienteIds.length ? sb.from('usuarios').select('id, nombre_completo').in('id', clienteIds) : { data: [] },
+      profesionalIds.length ? sb.from('usuarios').select('id, nombre_completo').in('id', profesionalIds) : { data: [] },
+      servicioIds.length ? sb.from('servicios').select('id, nombre').in('id', servicioIds) : { data: [] },
+    ])
+
+    const clienteMap    = Object.fromEntries((clientesRes.data ?? []).map((u: any) => [u.id, u]))
+    const profesionalMap = Object.fromEntries((profesionalesRes.data ?? []).map((u: any) => [u.id, u]))
+    const servicioMap   = Object.fromEntries((serviciosRes.data ?? []).map((s: any) => [s.id, s]))
+
+    const pendientes = reservasBase.map((r: any) => ({
+      id:                 r.id,
+      hora_inicio:  r.hora_inicio,
+      cliente_nombre:     clienteMap[r.cliente_id]?.nombre_completo || '',
+      profesional_nombre: profesionalMap[r.profesional_id]?.nombre_completo || '',
+      servicio_nombre:    servicioMap[r.servicio_id]?.nombre || '',
+    }))
+
     return NextResponse.json({
       success:       true,
-      puedesCerrar:  (pendientes ?? []).length === 0,
-      pendientes:    pendientes ?? [],
+      puedesCerrar:  pendientes.length === 0,
+      pendientes,
     })
   } catch (e: any) {
     console.error('[api/admin/cierre-dia GET]', e.message)
@@ -70,8 +93,8 @@ export async function POST(req: NextRequest) {
       .select('id')
       .eq('empresa_id', empresaId)
       .eq('estado', 'PENDIENTE')
-      .gte('fecha_hora_inicio', hoy + 'T00:00:00Z')
-      .lte('fecha_hora_inicio', hoy + 'T23:59:59Z')
+      .gte('hora_inicio', hoy + 'T00:00:00Z')
+      .lte('hora_inicio', hoy + 'T23:59:59Z')
 
     if ((pendientes ?? []).length > 0) {
       return NextResponse.json(
@@ -86,8 +109,8 @@ export async function POST(req: NextRequest) {
       .delete()
       .eq('empresa_id', empresaId)
       .in('estado', ['CONFIRMADA', 'RECHAZADA', 'CANCELADA_CLIENTE', 'CANCELADA_PROFESIONAL'])
-      .gte('fecha_hora_inicio', hoy + 'T00:00:00Z')
-      .lte('fecha_hora_inicio', hoy + 'T23:59:59Z')
+      .gte('hora_inicio', hoy + 'T00:00:00Z')
+      .lte('hora_inicio', hoy + 'T23:59:59Z')
       .select('id, estado')
 
     if (deleteError) throw deleteError

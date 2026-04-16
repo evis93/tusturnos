@@ -6,6 +6,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { ConsultanteController } from '@/src/controllers/ConsultanteController';
 import { Search, X, FolderOpen, Pencil, UserX, UserPlus } from 'lucide-react';
+import TelefonoInput from '@/src/components/ui/TelefonoInput';
 
 function Initials({ nombre, colors }: { nombre: string; colors: any }) {
   const initials = (nombre || '?')
@@ -212,14 +213,16 @@ export default function ClientesPage() {
                 {cliente.telefono && <p className="text-xs" style={{ color: colors.textSecondary }}>{cliente.telefono}</p>}
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                <button
-                  onClick={() => router.push(`/admin/clientes/${cliente.id}`)}
-                  className="p-2 rounded-lg transition"
-                  style={{ background: colors.primaryFaded }}
-                  title="Ver ficha"
-                >
-                  <FolderOpen size={16} style={{ color: colors.primary }} />
-                </button>
+                {cliente.tiene_ficha && (
+                  <button
+                    onClick={() => router.push(`/admin/clientes/${cliente.id}`)}
+                    className="p-2 rounded-lg transition"
+                    style={{ background: colors.primaryFaded }}
+                    title="Ver ficha"
+                  >
+                    <FolderOpen size={16} style={{ color: colors.primary }} />
+                  </button>
+                )}
                 <button onClick={() => handleEditar(cliente)} className="p-2 rounded-lg hover:bg-gray-100 transition" title="Editar">
                   <Pencil size={16} style={{ color: colors.textSecondary }} />
                 </button>
@@ -245,7 +248,7 @@ export default function ClientesPage() {
             <label className="block text-xs font-semibold mb-1 lowercase" style={{ color: colors.textSecondary }}>nombre</label>
             <input value={editNombre} onChange={e => setEditNombre(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border text-sm mb-3 focus:outline-none" style={{ borderColor: colors.border }} placeholder="nombre completo" />
             <label className="block text-xs font-semibold mb-1 lowercase" style={{ color: colors.textSecondary }}>teléfono</label>
-            <input value={editTelefono} onChange={e => setEditTelefono(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border text-sm mb-1 focus:outline-none" style={{ borderColor: colors.border }} placeholder="+54 11..." />
+            <TelefonoInput value={editTelefono} onChange={setEditTelefono} className="mb-1" />
             <p className="text-xs mb-4" style={{ color: colors.textMuted }}>el email no se puede modificar desde aquí</p>
             {errorEdit && <p className="text-xs text-red-500 mb-3">{errorEdit}</p>}
             <div className="flex gap-3">
@@ -271,7 +274,7 @@ export default function ClientesPage() {
             <label className="block text-xs font-semibold mb-1 lowercase" style={{ color: colors.textSecondary }}>email</label>
             <input value={altaEmail} onChange={e => setAltaEmail(e.target.value)} type="email" className="w-full px-3 py-2.5 rounded-xl border text-sm mb-3 focus:outline-none" style={{ borderColor: colors.border }} placeholder="email (opcional)" />
             <label className="block text-xs font-semibold mb-1 lowercase" style={{ color: colors.textSecondary }}>teléfono</label>
-            <input value={altaTelefono} onChange={e => setAltaTelefono(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border text-sm mb-4 focus:outline-none" style={{ borderColor: colors.border }} placeholder="+54 11..." />
+            <TelefonoInput value={altaTelefono} onChange={setAltaTelefono} className="mb-4" />
             <div className="flex items-center justify-between py-3 border-t mb-4" style={{ borderColor: colors.borderLight }}>
               <div>
                 <p className="text-sm font-semibold" style={{ color: colors.text }}>habilitar acceso a la app</p>

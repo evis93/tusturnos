@@ -45,15 +45,43 @@ export async function GET(req: NextRequest) {
 
     let procesadas = 0
 
+    // Helper: enrich reservas with user/service names
+    async function enrichReservas(reservasRaw: any[]) {
+      if (!reservasRaw.length) return []
+      const clienteIds    = [...new Set(reservasRaw.map(r => r.cliente_id).filter(Boolean))]
+      const profesionalIds = [...new Set(reservasRaw.map(r => r.profesional_id).filter(Boolean))]
+      const servicioIds   = [...new Set(reservasRaw.map(r => r.servicio_id).filter(Boolean))]
+
+      const [clientesRes, profesionalesRes, serviciosRes] = await Promise.all([
+        clienteIds.length ? sb.from('usuarios').select('id, nombre_completo, telefono').in('id', clienteIds) : { data: [] },
+        profesionalIds.length ? sb.from('usuarios').select('id, nombre_completo').in('id', profesionalIds) : { data: [] },
+        servicioIds.length ? sb.from('servicios').select('id, nombre').in('id', servicioIds) : { data: [] },
+      ])
+
+      const clienteMap    = Object.fromEntries((clientesRes.data ?? []).map((u: any) => [u.id, u]))
+      const profesionalMap = Object.fromEntries((profesionalesRes.data ?? []).map((u: any) => [u.id, u]))
+      const servicioMap   = Object.fromEntries((serviciosRes.data ?? []).map((s: any) => [s.id, s]))
+
+      return reservasRaw.map(r => ({
+        ...r,
+        cliente_nombre:     clienteMap[r.cliente_id]?.nombre_completo || '',
+        cliente_telefono:   clienteMap[r.cliente_id]?.telefono || '',
+        profesional_nombre: profesionalMap[r.profesional_id]?.nombre_completo || '',
+        servicio_nombre:    servicioMap[r.servicio_id]?.nombre || '',
+      }))
+    }
+
     // ── Recordatorios 24h ────────────────────────────────────────────────────
-    const { data: reservas24h } = await sb
-      .from('v_reservas_detalle')
+    const { data: reservas24hRaw } = await sb
+      .from('reservas')
       .select('*')
       .eq('estado', 'CONFIRMADA')
-      .gte('fecha_hora_inicio', en24h_desde.toISOString())
-      .lte('fecha_hora_inicio', en24h_hasta.toISOString())
+      .gte('hora_inicio', en24h_desde.toISOString())
+      .lte('hora_inicio', en24h_hasta.toISOString())
 
-    for (const r of (reservas24h ?? [])) {
+    const reservas24h = await enrichReservas(reservas24hRaw ?? [])
+
+    for (const r of reservas24h) {
       // Verificar que no fue enviado ya
       const { data: yaEnviado } = await sb
         .from('notificaciones_pendientes')
@@ -65,15 +93,7 @@ export async function GET(req: NextRequest) {
       if (yaEnviado) continue
       if (!r.cliente_telefono) continue
 
-      const datosWA = {
-        profesionalNombre: r.profesional_nombre,
-        clienteNombre:     r.cliente_nombre,
-        servicio:          r.servicio_nombre,
-        fechaHora:         formatearFechaHora(r.fecha_hora_inicio),
-        linkReserva:       `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/cliente/reservas/${r.id}`,
-      }
-
-      const mensaje = `Recordatorio: mañana tenés turno de *${r.servicio_nombre}* con ${r.profesional_nombre} a las ${formatearFechaHora(r.fecha_hora_inicio)}.`
+      const mensaje = `Recordatorio: mañana tenés turno de *${r.servicio_nombre}* con ${r.profesional_nombre} a las ${formatearFechaHora(r.hora_inicio)}.`
 
       await sb.from('notificaciones_pendientes').insert({
         reserva_id:  r.id,
@@ -88,14 +108,16 @@ export async function GET(req: NextRequest) {
     }
 
     // ── Recordatorios 1h ─────────────────────────────────────────────────────
-    const { data: reservas1h } = await sb
-      .from('v_reservas_detalle')
+    const { data: reservas1hRaw } = await sb
+      .from('reservas')
       .select('*')
       .eq('estado', 'CONFIRMADA')
-      .gte('fecha_hora_inicio', en1h_desde.toISOString())
-      .lte('fecha_hora_inicio', en1h_hasta.toISOString())
+      .gte('hora_inicio', en1h_desde.toISOString())
+      .lte('hora_inicio', en1h_hasta.toISOString())
 
-    for (const r of (reservas1h ?? [])) {
+    const reservas1h = await enrichReservas(reservas1hRaw ?? [])
+
+    for (const r of reservas1h) {
       const { data: yaEnviado } = await sb
         .from('notificaciones_pendientes')
         .select('id')
@@ -106,7 +128,7 @@ export async function GET(req: NextRequest) {
       if (yaEnviado) continue
       if (!r.cliente_telefono) continue
 
-      const mensaje = `Tu turno de *${r.servicio_nombre}* con ${r.profesional_nombre} es en 1 hora (${formatearFechaHora(r.fecha_hora_inicio)}). ¡Te esperamos!`
+      const mensaje = `Tu turno de *${r.servicio_nombre}* con ${r.profesional_nombre} es en 1 hora (${formatearFechaHora(r.hora_inicio)}). ¡Te esperamos!`
 
       await sb.from('notificaciones_pendientes').insert({
         reserva_id:  r.id,

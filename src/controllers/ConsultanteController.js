@@ -6,7 +6,7 @@ import { requireEmpresa, requirePermission } from '../utils/permissions';
 // 2) fallback: primera sucursal de la empresa
 async function resolverSucursalId(profesional_id, empresaId) {
   if (profesional_id) {
-    const { data: ueProf } = await supabaseAdmin
+    const { data: ueProf } = await supabase
       .from('usuario_empresa')
       .select('sucursal_id')
       .eq('usuario_id', profesional_id)
@@ -15,7 +15,7 @@ async function resolverSucursalId(profesional_id, empresaId) {
       .maybeSingle();
     if (ueProf?.sucursal_id) return ueProf.sucursal_id;
   }
-  const { data: sucRow } = await supabaseAdmin
+  const { data: sucRow } = await supabase
     .from('sucursales')
     .select('id')
     .eq('empresa_id', empresaId)
@@ -73,34 +73,16 @@ export class ConsultanteController {
 
       if (usrError) throw usrError;
 
-      // Paso 3: obtener fichas por usr_empresa_id
-      const usrEmpresaIds = (usuarios || [])
-        .map(u => ueMap.get(u.id))
-        .filter(Boolean);
-
-      let fichasMap = new Map();
-      if (usrEmpresaIds.length > 0) {
-        const { data: fichas } = await supabase
-          .from('fichas')
-          .select('id, usuario_empresa_id')
-          .in('usuario_empresa_id', usrEmpresaIds);
-
-        (fichas || []).forEach(f => fichasMap.set(f.usuario_empresa_id, f.id));
-      }
-
-      const consultantes = (usuarios || []).map(u => {
-        const usrEmpresaId = ueMap.get(u.id);
-        return {
-          id: u.id,
-          usuario_id: u.id,
-          usr_empresa_id: usrEmpresaId || null,
-          ficha_id: fichasMap.get(usrEmpresaId) || null,
-          nombre_completo: u.nombre_completo || '',
-          email: u.email || '',
-          telefono: u.telefono || '',
-          activo: u.activo ?? true,
-        };
-      }).sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo));
+      const consultantes = (usuarios || []).map(u => ({
+        id: u.id,
+        usuario_id: u.id,
+        usr_empresa_id: ueMap.get(u.id) || null,
+        ficha_id: null,
+        nombre_completo: u.nombre_completo || '',
+        email: u.email || '',
+        telefono: u.telefono || '',
+        activo: u.activo ?? true,
+      })).sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo));
 
       return { success: true, data: consultantes };
     } catch (error) {
@@ -145,24 +127,22 @@ export class ConsultanteController {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Obtener fichas por usr_empresa_id (usuario_empresa.id)
-      const usrEmpresaIds = (data || []).map(d => d.id);
-      let fichasMap = new Map();
-
-      if (usrEmpresaIds.length > 0) {
+      // Verificar qué clientes tienen al menos una ficha (por cliente_id)
+      const clienteIds = (data || []).map(d => d.usuarios.id);
+      const fichasSet = new Set();
+      if (clienteIds.length > 0) {
         const { data: fichas } = await supabase
           .from('fichas')
-          .select('id, usuario_empresa_id')
-          .in('usuario_empresa_id', usrEmpresaIds);
-
-        (fichas || []).forEach(f => fichasMap.set(f.usuario_empresa_id, f.id));
+          .select('cliente_id')
+          .in('cliente_id', clienteIds);
+        (fichas || []).forEach(f => fichasSet.add(f.cliente_id));
       }
 
       const consultantes = (data || []).map(item => ({
         id: item.usuarios.id,
         usuario_id: item.usuarios.id,
         usr_empresa_id: item.id,
-        ficha_id: fichasMap.get(item.id) || null,
+        tiene_ficha: fichasSet.has(item.usuarios.id),
         nombre_completo: item.usuarios.nombre_completo || '',
         email: item.usuarios.email || '',
         telefono: item.usuarios.telefono || '',
@@ -177,6 +157,7 @@ export class ConsultanteController {
   }
 
   // Crear nuevo consultante (cliente)
+  // Delega a /api/admin/clientes para crear el auth_user server-side con contraseña 123456
   static async crearConsultante(consultanteData, profile) {
     const permError = requirePermission(profile, 'consultantes:write');
     if (permError) return permError;
@@ -185,216 +166,39 @@ export class ConsultanteController {
     if (empError) return empError;
 
     try {
-      const { nombre_completo, email, telefono, autorizar_acceso_app, profesional_id } = consultanteData;
+      const { nombre_completo, email, telefono, profesional_id } = consultanteData;
 
       if (!nombre_completo || nombre_completo.trim() === '') {
         return { success: false, error: 'El nombre es obligatorio' };
       }
 
-      if (autorizar_acceso_app && (!email || !email.trim())) {
-        return { success: false, error: 'El email es obligatorio para habilitar el acceso a la app' };
-      }
+      const res  = await fetch('/api/admin/clientes', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          nombre:       nombre_completo.trim(),
+          email:        email?.trim() || null,
+          telefono:     telefono?.trim() || null,
+          empresaId:    profile.empresaId,
+          profesionalId: profesional_id || null,
+        }),
+      });
 
-      // Verificar si ya existe un usuario con el mismo email
-      if (email && email.trim() !== '') {
-        const { data: usuarioExistente } = await supabase
-          .from('usuarios')
-          .select('id, nombre_completo, email, telefono')
-          .eq('email', email.trim().toLowerCase())
-          .maybeSingle();
-
-        if (usuarioExistente) {
-          // Verificar si ya tiene rol cliente en esta empresa
-          const { data: ueExistente } = await supabase
-            .from('usuario_empresa')
-            .select('id, roles!inner(rol)')
-            .eq('usuario_id', usuarioExistente.id)
-            .eq('empresa_id', profile.empresaId)
-            .eq('roles.rol', 'cliente')
-            .maybeSingle();
-
-          if (ueExistente) {
-            return {
-              success: true,
-              data: {
-                id: usuarioExistente.id,
-                usuario_id: usuarioExistente.id,
-                usr_empresa_id: ueExistente.id,
-                nombre_completo: usuarioExistente.nombre_completo,
-                email: usuarioExistente.email,
-                telefono: usuarioExistente.telefono,
-              },
-              message: 'El usuario ya existe como cliente en esta empresa',
-            };
-          }
-
-          // Agregar rol cliente a usuario existente
-          const { data: rolData } = await supabase
-            .from('roles')
-            .select('id')
-            .eq('rol', 'cliente')
-            .single();
-
-          if (rolData) {
-            const sucursalId = await resolverSucursalId(profesional_id, profile.empresaId);
-            const { data: ueNuevo, error: ueNuevoError } = await supabase
-              .from('usuario_empresa')
-              .insert([{
-                usuario_id: usuarioExistente.id,
-                empresa_id: profile.empresaId,
-                rol_id: rolData.id,
-                sucursal_id: sucursalId,
-              }])
-              .select('id')
-              .single();
-
-            if (ueNuevoError) throw new Error(`Error al vincular cliente a empresa: ${ueNuevoError.message}`);
-
-            return {
-              success: true,
-              data: {
-                id: usuarioExistente.id,
-                usuario_id: usuarioExistente.id,
-                usr_empresa_id: ueNuevo?.id || null,
-                nombre_completo: usuarioExistente.nombre_completo,
-                email: usuarioExistente.email,
-                telefono: usuarioExistente.telefono,
-              },
-              message: 'Rol cliente agregado al usuario existente',
-            };
-          }
-        }
-      }
-
-      // Crear cuenta en Supabase Auth si se autoriza acceso (envía email de invitación)
-      let authUserId = null;
-      let invitacionEnviada = false;
-
-      if (autorizar_acceso_app && email?.trim()) {
-        const emailNormalizado = email.trim().toLowerCase();
-
-        // Obtener URL de la empresa para el redirectTo del mail de invitación
-        const { data: empresaData } = await supabaseAdmin
-          .from('empresas')
-          .select('slug, custom_domain')
-          .eq('id', profile.empresaId)
-          .maybeSingle();
-
-        const empresaLoginUrl = empresaData?.custom_domain
-          ? `https://${empresaData.custom_domain}/auth/login`
-          : empresaData?.slug
-          ? `https://${empresaData.slug}.tusturnos.ar/auth/login`
-          : 'https://tusturnos.ar/auth/login';
-
-        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-          emailNormalizado,
-          { data: { nombre_completo: nombre_completo.trim() }, redirectTo: empresaLoginUrl }
-        );
-
-        if (authError && !authError.message?.includes('already been registered')) {
-          throw new Error(`Error al invitar al usuario: ${authError.message}`);
-        }
-
-        if (!authError && authData?.user) {
-          authUserId = authData.user.id;
-          invitacionEnviada = true;
-          // Setear contraseña por defecto para que pueda ingresar sin esperar el email
-          await supabaseAdmin.auth.admin.updateUserById(authUserId, { password: '123456' });
-        }
-      }
-
-      // Crear o actualizar usuario en tabla usuarios (usar supabaseAdmin para evitar restricciones de RLS)
-      // Si el trigger de auth ya creó el row, lo actualizamos en vez de insertar
-      const emailNorm = email?.trim().toLowerCase() || null;
-      let usuarioData = null;
-
-      if (authUserId) {
-        // El trigger puede haber creado el row — buscar por auth_user_id o email
-        const { data: existente } = await supabaseAdmin
-          .from('usuarios')
-          .select('id')
-          .or(`auth_user_id.eq.${authUserId},email.eq.${emailNorm}`)
-          .maybeSingle();
-
-        if (existente) {
-          const { data: updated, error: updateError } = await supabaseAdmin
-            .from('usuarios')
-            .update({
-              nombre_completo: nombre_completo.trim(),
-              telefono: telefono?.trim() || null,
-              activo: true,
-              auth_user_id: authUserId,
-            })
-            .eq('id', existente.id)
-            .select()
-            .single();
-          if (updateError) throw updateError;
-          usuarioData = updated;
-        }
-      }
-
-      if (!usuarioData) {
-        const { data: inserted, error: insertError } = await supabaseAdmin
-          .from('usuarios')
-          .insert([{
-            nombre_completo: nombre_completo.trim(),
-            email: emailNorm,
-            telefono: telefono?.trim() || null,
-            activo: true,
-            auth_user_id: authUserId,
-          }])
-          .select()
-          .single();
-
-        if (insertError) {
-          if (authUserId) {
-            await supabaseAdmin.auth.admin.deleteUser(authUserId).catch(() => {});
-          }
-          throw insertError;
-        }
-        usuarioData = inserted;
-      }
-
-      // Obtener rol_id de cliente
-      const { data: rolData } = await supabaseAdmin
-        .from('roles')
-        .select('id')
-        .eq('rol', 'cliente')
-        .single();
-
-      let usrEmpresaId = null;
-      if (rolData) {
-        const sucursalId = await resolverSucursalId(profesional_id, profile.empresaId);
-        const { data: ueData, error: ueError } = await supabaseAdmin
-          .from('usuario_empresa')
-          .insert([{
-            usuario_id: usuarioData.id,
-            empresa_id: profile.empresaId,
-            rol_id: rolData.id,
-            sucursal_id: sucursalId,
-          }])
-          .select('id')
-          .single();
-
-        if (ueError) throw new Error(`Error al vincular cliente a empresa: ${ueError.message}`);
-        usrEmpresaId = ueData?.id || null;
-      }
+      const json = await res.json();
+      if (!res.ok) return { success: false, error: json.error || 'Error al crear cliente' };
 
       return {
         success: true,
         data: {
-          id: usuarioData.id,
-          usuario_id: usuarioData.id,
-          usr_empresa_id: usrEmpresaId,
-          nombre_completo: usuarioData.nombre_completo,
-          email: usuarioData.email,
-          telefono: usuarioData.telefono,
-          activo: true,
+          id:              json.usuarioId,
+          usuario_id:      json.usuarioId,
+          usr_empresa_id:  null,
+          nombre_completo: nombre_completo.trim(),
+          email:           email?.trim().toLowerCase() || null,
+          telefono:        telefono?.trim() || null,
+          activo:          true,
         },
-        invitacionEnviada,
-        message: invitacionEnviada
-          ? 'Cliente creado. Se envió un email de invitación para activar su cuenta.'
-          : 'Cliente creado exitosamente',
+        message: 'Cliente creado con acceso a la app (contraseña: 123456)',
       };
     } catch (error) {
       console.error('[crearConsultante] Error:', error);
@@ -429,16 +233,6 @@ export class ConsultanteController {
           .maybeSingle();
 
         usrEmpresaId = ue?.id || null;
-
-        if (usrEmpresaId) {
-          const { data: ficha } = await supabase
-            .from('fichas')
-            .select('id')
-            .eq('usuario_empresa_id', usrEmpresaId)
-            .maybeSingle();
-
-          fichaId = ficha?.id || null;
-        }
       }
 
       return {

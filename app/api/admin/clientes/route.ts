@@ -67,21 +67,58 @@ export async function GET(req: NextRequest) {
   }
 }
 
+async function resolverSucursalId(sb: any, profesionalId: string | null, empresaId: string) {
+  if (profesionalId) {
+    const { data } = await sb
+      .from('usuario_empresa')
+      .select('sucursal_id')
+      .eq('usuario_id', profesionalId)
+      .eq('empresa_id', empresaId)
+      .not('sucursal_id', 'is', null)
+      .maybeSingle();
+    if (data?.sucursal_id) return data.sucursal_id;
+  }
+  const { data } = await sb
+    .from('sucursales')
+    .select('id')
+    .eq('empresa_id', empresaId)
+    .limit(1)
+    .maybeSingle();
+  return data?.id || null;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { email, nombre, telefono, empresaId } = await req.json();
+    const { email, nombre, telefono, empresaId, profesionalId } = await req.json();
 
-    if (!email || !nombre || !empresaId) {
-      return NextResponse.json({ error: 'email, nombre y empresaId son requeridos' }, { status: 400 });
+    if (!nombre || !empresaId) {
+      return NextResponse.json({ error: 'nombre y empresaId son requeridos' }, { status: 400 });
     }
 
-    const sb = adminClient();
+    const sb         = adminClient();
+    const emailNorm  = email?.trim().toLowerCase() || null;
+
+    // Sin email → crear cliente directo sin cuenta auth
+    if (!emailNorm) {
+      const { data: inserted, error } = await sb
+        .from('usuarios')
+        .insert({ nombre_completo: nombre.trim(), telefono: telefono?.trim() || null, activo: true })
+        .select('id').single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      const { data: rolData } = await sb.from('roles').select('id').eq('rol', 'cliente').maybeSingle();
+      const sucursalId = await resolverSucursalId(sb, profesionalId || null, empresaId);
+      await sb.from('usuario_empresa').insert({
+        usuario_id: inserted.id, empresa_id: empresaId, rol_id: rolData?.id, sucursal_id: sucursalId,
+      });
+      return NextResponse.json({ success: true, usuarioId: inserted.id });
+    }
 
     // 1. Verificar si ya existe un usuario con este email en public.usuarios
     const { data: usuarioExistente } = await sb
       .from('usuarios')
       .select('id, auth_user_id, nombre_completo, email, telefono')
-      .eq('email', email.trim().toLowerCase())
+      .eq('email', emailNorm)
       .maybeSingle();
 
     let usuarioId: string;
@@ -96,7 +133,7 @@ export async function POST(req: NextRequest) {
       } else {
         // Tiene registro en public.usuarios pero sin auth → crear auth user
         const { data: authData, error: authError } = await sb.auth.admin.createUser({
-          email: email.trim().toLowerCase(),
+          email: emailNorm,
           password: PASSWORD_CLIENTES,
           email_confirm: true,
           user_metadata: { full_name: nombre.trim() },
@@ -127,7 +164,7 @@ export async function POST(req: NextRequest) {
     } else {
       // 2. No existe → crear en auth.users
       const { data: authData, error: authError } = await sb.auth.admin.createUser({
-        email: email.trim().toLowerCase(),
+        email: emailNorm,
         password: PASSWORD_CLIENTES,
         email_confirm: true,
         user_metadata: { full_name: nombre.trim() },
@@ -162,7 +199,7 @@ export async function POST(req: NextRequest) {
           .insert({
             auth_user_id: authUserId,
             nombre_completo: nombre.trim(),
-            email: email.trim().toLowerCase(),
+            email: emailNorm,
             telefono: telefono?.trim() || null,
             activo: true,
           })
@@ -196,9 +233,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!ueExistente) {
+      const sucursalId = await resolverSucursalId(sb, profesionalId || null, empresaId);
       const { error: ueError } = await sb
         .from('usuario_empresa')
-        .insert({ usuario_id: usuarioId, empresa_id: empresaId, rol_id: rolData.id });
+        .insert({ usuario_id: usuarioId, empresa_id: empresaId, rol_id: rolData.id, sucursal_id: sucursalId });
 
       if (ueError) {
         return NextResponse.json({ error: ueError.message }, { status: 500 });

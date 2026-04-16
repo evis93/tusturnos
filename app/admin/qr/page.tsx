@@ -41,10 +41,12 @@ export default function QRPage() {
   const [igUrl, setIgUrl] = useState('');
   const [emailContacto, setEmailContacto] = useState('');
   const [savingRedes, setSavingRedes] = useState(false);
+  const [empresaSlug, setEmpresaSlug] = useState<string | null>(null);
 
   const empresaId = profile?.empresaId ?? 'mi-empresa';
   const empresaNombre = (profile as any)?.empresaNombre ?? 'Tu espacio';
-  const deepLink = `https://tusturnos.ar/link/${empresaId}`;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://tusturnos.ar';
+  const deepLink = empresaSlug ? `${baseUrl}/e/${empresaSlug}` : baseUrl;
   const size = SIZES.find(s => s.key === selectedSize) || SIZES[1];
   const qrHex = colors.primary.replace('#', '');
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size.px}x${size.px}&data=${encodeURIComponent(deepLink)}&bgcolor=ffffff&color=${qrHex}&margin=12`;
@@ -53,11 +55,12 @@ export default function QRPage() {
     if (!profile?.empresaId) return;
     supabase
       .from('empresas')
-      .select('facebook_url, instagram_url, email_contacto')
+      .select('slug, facebook_url, instagram_url, email_contacto')
       .eq('id', profile.empresaId)
       .single()
       .then(({ data }) => {
         if (data) {
+          setEmpresaSlug((data as any).slug || null);
           setFbUrl(data.facebook_url || '');
           setIgUrl(data.instagram_url || '');
           setEmailContacto(data.email_contacto || '');

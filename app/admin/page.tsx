@@ -3,83 +3,81 @@
 import { useEffect, useState } from 'react';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
-import { DatabaseService } from '@/src/services/database.service';
-import { TrendingUp, ChevronLeft, ChevronRight, Clock, Users, UserRound, Sparkles, LoaderCircle, QrCode } from 'lucide-react';
+import { supabase } from '@/src/config/supabase';
+import { TrendingUp, ChevronRight, Clock, Users, UserRound, Sparkles, LoaderCircle, QrCode } from 'lucide-react';
 
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const METODOS_LABEL: Record<string, string> = {
+  efectivo:        'Efectivo',
+  transferencia:   'Transferencia',
+  tarjeta_debito:  'Tarjeta de Débito',
+  tarjeta_credito: 'Tarjeta de Crédito',
+  mercadopago:     'Mercado Pago',
+  obra_social:     'Obra Social',
+  otro:            'Otro',
+};
 
 export default function AdminPage() {
   const { colors } = useTheme();
   const { profile, loading } = useAuth();
 
-  const now = new Date();
-  const [dia, setDia] = useState(now.getDate());
-  const [mes, setMes] = useState(now.getMonth() + 1);
-  const [año, setAño] = useState(now.getFullYear());
-  const [totalDia, setTotalDia] = useState(0);
-  const [totalMes, setTotalMes] = useState(0);
-  const [diasConIngresos, setDiasConIngresos] = useState<number[]>([]);
+  const hoy = new Date().toISOString().split('T')[0];
+  const [desglose, setDesglose]   = useState<{ metodo: string; total: number }[]>([]);
+  const [totalDia, setTotalDia]   = useState(0);
+  const [totalMes, setTotalMes]   = useState(0);
+  const [cargando, setCargando]   = useState(false);
 
-  const terapeutaId = profile?.profesionalId;
+  const empresaId = profile?.empresaId;
 
   useEffect(() => {
-    if (!terapeutaId) return;
-    const mesStr = mes.toString().padStart(2, '0');
-    const diaStr = dia.toString().padStart(2, '0');
-    const fecha = `${año}-${mesStr}-${diaStr}`;
+    if (!empresaId) return;
+    setCargando(true);
 
-    DatabaseService.query('reservas', {
-      select: 'precio_total',
-      filters: [
-        { field: 'profesional_id', operator: 'eq', value: terapeutaId },
-        { field: 'fecha', operator: 'eq', value: fecha },
-      ],
-    }).then(result => {
-      if (result.success) {
-        const total = ((result as any).data as any[])
-          .filter(r => r.precio_total && parseFloat(r.precio_total) > 0)
-          .reduce((sum: number, r: any) => sum + parseFloat(r.precio_total), 0);
-        setTotalDia(total);
+    const [año, mes] = hoy.split('-');
+    const inicio = `${año}-${mes}-01`;
+    const ultimoDia = new Date(parseInt(año), parseInt(mes), 0).getDate();
+    const fin = `${año}-${mes}-${ultimoDia.toString().padStart(2, '0')}`;
+
+    Promise.all([
+      // Pagos de hoy
+      supabase
+        .from('pagos_reservas')
+        .select('monto, metodo_pago')
+        .gte('created_at', `${hoy}T00:00:00`)
+        .lte('created_at', `${hoy}T23:59:59`),
+
+      // Pagos del mes
+      supabase
+        .from('pagos_reservas')
+        .select('monto')
+        .gte('created_at', `${inicio}T00:00:00`)
+        .lte('created_at', `${fin}T23:59:59`),
+    ]).then(([{ data: hoyData }, { data: mesData }]) => {
+      // Desglose diario
+      const mapa: Record<string, number> = {};
+      for (const r of hoyData || []) {
+        if (!r.monto) continue;
+        const metodo = r.metodo_pago || 'otro';
+        mapa[metodo] = (mapa[metodo] || 0) + parseFloat(r.monto);
       }
+      const filas = Object.entries(mapa)
+        .map(([metodo, total]) => ({ metodo, total }))
+        .sort((a, b) => b.total - a.total);
+      setDesglose(filas);
+      setTotalDia(filas.reduce((s, f) => s + f.total, 0));
+
+      // Total mes
+      const mes_ = (mesData || [])
+        .filter(r => r.monto)
+        .reduce((s, r) => s + parseFloat(r.monto), 0);
+      setTotalMes(mes_);
+
+      setCargando(false);
     });
-  }, [dia, mes, año, terapeutaId]);
+  }, [empresaId]);
 
-  useEffect(() => {
-    if (!terapeutaId) return;
-    const mesStr = mes.toString().padStart(2, '0');
-    const ultimoDia = new Date(año, mes, 0).getDate();
-    const inicio = `${año}-${mesStr}-01`;
-    const fin = `${año}-${mesStr}-${ultimoDia.toString().padStart(2, '0')}`;
-
-    DatabaseService.query('reservas', {
-      select: 'precio_total, fecha',
-      filters: [
-        { field: 'profesional_id', operator: 'eq', value: terapeutaId },
-        { field: 'fecha', operator: 'gte', value: inicio },
-        { field: 'fecha', operator: 'lte', value: fin },
-      ],
-    }).then(result => {
-      if (result.success) {
-        const conMonto = ((result as any).data as any[]).filter(r => r.precio_total && parseFloat(r.precio_total) > 0);
-        setTotalMes(conMonto.reduce((sum: number, r: any) => sum + parseFloat(r.precio_total), 0));
-        const dias = conMonto.map((r: any) => parseInt(r.fecha.split('-')[2], 10));
-        setDiasConIngresos([...new Set(dias)]);
-      }
-    });
-  }, [mes, año, terapeutaId]);
-
-  const cambiarMes = (dir: number) => {
-    let nuevoMes = mes + dir;
-    let nuevoAño = año;
-    if (nuevoMes > 12) { nuevoMes = 1; nuevoAño++; }
-    else if (nuevoMes < 1) { nuevoMes = 12; nuevoAño--; }
-    setMes(nuevoMes);
-    setAño(nuevoAño);
-    const ultimoDia = new Date(nuevoAño, nuevoMes, 0).getDate();
-    if (dia > ultimoDia) setDia(ultimoDia);
-  };
-
-  const diasDelMes = Array.from({ length: new Date(año, mes, 0).getDate() }, (_, i) => i + 1);
+  const fechaDisplay = new Date(hoy + 'T12:00:00').toLocaleDateString('es-AR', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -93,11 +91,11 @@ export default function AdminPage() {
         <h2 className="text-base font-semibold mb-4" style={{ color: colors.text }}>Configuración rápida</h2>
         <div className="space-y-1">
           {[
-            { href: '/admin/horarios', icon: <Clock size={18} />, label: 'Horarios de Atención' },
-            { href: '/admin/profesionales', icon: <Users size={18} />, label: 'Profesionales' },
-            { href: '/admin/servicios', icon: <Sparkles size={18} />, label: 'Servicios' },
-            { href: '/admin/clientes', icon: <UserRound size={18} />, label: 'Clientes' },
-            { href: '/admin/qr', icon: <QrCode size={18} />, label: 'Código QR' },
+            { href: '/admin/horarios',      icon: <Clock size={18} />,     label: 'Horarios de Atención' },
+            { href: '/admin/profesionales', icon: <Users size={18} />,     label: 'Profesionales' },
+            { href: '/admin/servicios',     icon: <Sparkles size={18} />,  label: 'Servicios' },
+            { href: '/admin/clientes',      icon: <UserRound size={18} />, label: 'Clientes' },
+            { href: '/admin/qr',            icon: <QrCode size={18} />,    label: 'Código QR' },
           ].map(item => (
             <a
               key={item.href}
@@ -105,21 +103,17 @@ export default function AdminPage() {
               className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-50 transition group"
             >
               <span style={{ color: colors.primary }}>{item.icon}</span>
-              <span className="flex-1 text-sm font-medium" style={{ color: colors.text }}>
-                {item.label}
-              </span>
+              <span className="flex-1 text-sm font-medium" style={{ color: colors.text }}>{item.label}</span>
               <ChevronRight size={16} className="text-gray-400 group-hover:text-gray-600 transition" />
             </a>
           ))}
         </div>
       </div>
 
-      {/* Totales */}
+      {/* Totales rápidos */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-xl p-5 shadow-sm border" style={{ borderColor: colors.border }}>
-          <p className="text-sm font-medium mb-1" style={{ color: colors.textSecondary }}>
-            Total del día {dia}
-          </p>
+          <p className="text-sm font-medium mb-1" style={{ color: colors.textSecondary }}>Total hoy</p>
           <p className="text-3xl font-bold" style={{ color: colors.primary }}>
             ${totalDia.toFixed(2)}
           </p>
@@ -127,9 +121,7 @@ export default function AdminPage() {
         <div className="bg-white rounded-xl p-5 shadow-sm border" style={{ borderColor: colors.border }}>
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp size={16} style={{ color: colors.primary }} />
-            <p className="text-sm font-medium" style={{ color: colors.textSecondary }}>
-              Total del mes
-            </p>
+            <p className="text-sm font-medium" style={{ color: colors.textSecondary }}>Total del mes</p>
           </div>
           <p className="text-3xl font-bold" style={{ color: colors.primary }}>
             ${totalMes.toFixed(2)}
@@ -137,40 +129,45 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Selector de mes + mini calendario */}
+      {/* Desglose diario por tipo de pago */}
       <div className="bg-white rounded-xl p-5 shadow-sm border" style={{ borderColor: colors.border }}>
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => cambiarMes(-1)} className="p-2 rounded-lg hover:bg-gray-100 transition">
-            <ChevronLeft size={20} style={{ color: colors.text }} />
-          </button>
-          <span className="font-semibold text-lg" style={{ color: colors.text }}>
-            {MESES[mes - 1]} {año}
-          </span>
-          <button onClick={() => cambiarMes(1)} className="p-2 rounded-lg hover:bg-gray-100 transition">
-            <ChevronRight size={20} style={{ color: colors.text }} />
-          </button>
-        </div>
+        <p className="text-sm font-semibold mb-4 capitalize" style={{ color: colors.text }}>
+          Desglose de hoy · <span className="font-normal" style={{ color: colors.textSecondary }}>{fechaDisplay}</span>
+        </p>
 
-        <div className="grid grid-cols-7 gap-1">
-          {diasDelMes.map(d => {
-            const tieneIngreso = diasConIngresos.includes(d);
-            const isSelected = d === dia;
-            return (
-              <button
-                key={d}
-                onClick={() => setDia(d)}
-                className="aspect-square rounded-lg text-sm font-medium transition-all flex items-center justify-center"
-                style={{
-                  background: isSelected ? colors.primary : tieneIngreso ? '#dcfce7' : 'transparent',
-                  color: isSelected ? '#fff' : tieneIngreso ? '#15803d' : colors.text,
-                  border: tieneIngreso && !isSelected ? '1px solid #22c55e' : '1px solid transparent',
-                }}
+        {cargando ? (
+          <div className="flex justify-center py-6">
+            <LoaderCircle size={20} className="animate-spin" style={{ color: colors.primary }} />
+          </div>
+        ) : desglose.length === 0 ? (
+          <p className="text-sm italic text-center py-4" style={{ color: colors.textSecondary }}>
+            Sin pagos registrados hoy
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {desglose.map(({ metodo, total }) => (
+              <div
+                key={metodo}
+                className="flex items-center justify-between px-4 py-3 rounded-xl"
+                style={{ background: colors.primaryFaded }}
               >
-                {d}
-              </button>
-            );
-          })}
-        </div>
+                <span className="text-sm font-medium" style={{ color: colors.text }}>
+                  {METODOS_LABEL[metodo] ?? metodo}
+                </span>
+                <span className="text-sm font-bold" style={{ color: colors.primary }}>
+                  ${total.toFixed(2)}
+                </span>
+              </div>
+            ))}
+            <div
+              className="flex items-center justify-between px-4 py-3 rounded-xl mt-1"
+              style={{ background: colors.primary }}
+            >
+              <span className="text-sm font-bold text-white">Total</span>
+              <span className="text-sm font-bold text-white">${totalDia.toFixed(2)}</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -147,7 +147,7 @@ export default function ModalCierreCaja({
                               {r.cliente_nombre}
                             </p>
                             <p className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
-                              {r.servicio_nombre} · {new Date(r.fecha_hora_inicio).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                              {r.servicio_nombre} · {new Date(r.hora_inicio).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
                               {r.profesional_nombre ? ` · ${r.profesional_nombre}` : ''}
                             </p>
                           </div>

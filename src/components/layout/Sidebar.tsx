@@ -17,14 +17,17 @@ import {
   QrCode,
   MapPin,
   ChevronDown,
+  CalendarDays,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSucursal } from '@/src/context/SucursalContext';
 
 interface NavItem {
   label: string;
-  href: string;
+  href?: string;
+  action?: 'logout' | 'cambiar-contrasena';
   icon: React.ReactNode;
+  danger?: boolean;
 }
 
 const ADMIN_NAV: NavItem[] = [
@@ -43,7 +46,7 @@ const PROFESIONAL_NAV: NavItem[] = [
 
 const CLIENTE_NAV: NavItem[] = [
   { label: 'Inicio', href: '/cliente', icon: <Home size={18} /> },
-  { label: 'Explorar', href: '/cliente/explorar-profesionales', icon: <Building2 size={18} /> },
+  { label: 'Mis turnos', href: '/cliente/explorar-profesionales', icon: <CalendarDays size={18} /> },
 ];
 
 const MENSANA_NAV: NavItem[] = [
@@ -159,16 +162,26 @@ export default function Sidebar() {
       {/* Nav items */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {nav.map((item) => {
-          const isActive = pathname === item.href || (item.href !== '/admin' && item.href !== '/profesional' && item.href !== '/cliente' && item.href !== '/mensana' && pathname.startsWith(item.href));
+          if (item.action === 'logout') {
+            return (
+              <button
+                key={item.label}
+                onClick={logout}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full text-left hover:bg-red-50 hover:text-red-600 text-gray-500"
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            );
+          }
+          const isActive = item.href && (pathname === item.href || (item.href !== '/admin' && item.href !== '/profesional' && item.href !== '/cliente' && item.href !== '/mensana' && pathname.startsWith(item.href)));
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={item.href!}
               className={clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+                isActive ? 'text-white' : 'text-gray-600 hover:bg-gray-100'
               )}
               style={isActive ? { background: colors.primary, color: colors.headerText || '#fff' } : {}}
             >

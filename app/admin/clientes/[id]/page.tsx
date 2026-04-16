@@ -8,6 +8,7 @@ import { ConsultanteController } from '@/src/controllers/ConsultanteController';
 import { ReservaController } from '@/src/controllers/ReservaController';
 import { FichaClienteController } from '@/src/controllers/FichaClienteController';
 import { ArrowLeft, Pencil, Plus, X, CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
+import TelefonoInput from '@/src/components/ui/TelefonoInput';
 
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
@@ -259,7 +260,7 @@ export default function FichaClientePage() {
             <label className="block text-xs font-bold mb-1 lowercase" style={{ color: colors.textSecondary }}>nombre</label>
             <input value={editNombre} onChange={e => setEditNombre(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border text-sm mb-3 focus:outline-none" style={{ borderColor: colors.border }} placeholder="nombre completo" />
             <label className="block text-xs font-bold mb-1 lowercase" style={{ color: colors.textSecondary }}>teléfono</label>
-            <input value={editTelefono} onChange={e => setEditTelefono(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border text-sm mb-1 focus:outline-none" style={{ borderColor: colors.border }} placeholder="+54 11..." />
+            <TelefonoInput value={editTelefono} onChange={setEditTelefono} className="mb-1" />
             <p className="text-xs mb-4" style={{ color: colors.textMuted }}>el email no se puede modificar desde aquí</p>
             {errorEdit && <p className="text-xs text-red-500 mb-3">{errorEdit}</p>}
             <div className="flex gap-3">

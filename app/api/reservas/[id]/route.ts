@@ -19,14 +19,40 @@ export async function GET(
   try {
     const { id } = await params
     const sb = adminClient()
-    const { data, error } = await sb
-      .from('v_reservas_detalle')
+    const { data: reserva, error } = await sb
+      .from('reservas')
       .select('*')
       .eq('id', id)
       .single()
 
     if (error) throw error
-    if (!data) return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
+    if (!reserva) return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
+
+    // Enrich with related data
+    const [clienteRes, profesionalRes, servicioRes] = await Promise.all([
+      reserva.cliente_id
+        ? sb.from('usuarios').select('id, nombre_completo, email, telefono').eq('id', reserva.cliente_id).single()
+        : { data: null },
+      reserva.profesional_id
+        ? sb.from('usuarios').select('id, nombre_completo, telefono').eq('id', reserva.profesional_id).single()
+        : { data: null },
+      reserva.servicio_id
+        ? sb.from('servicios').select('id, nombre, precio').eq('id', reserva.servicio_id).single()
+        : { data: null },
+    ])
+
+    const data = {
+      ...reserva,
+      cliente_usuario_id:    reserva.cliente_id,
+      profesional_usuario_id: reserva.profesional_id,
+      cliente_nombre:         clienteRes.data?.nombre_completo || '',
+      cliente_email:          clienteRes.data?.email || '',
+      cliente_telefono:       clienteRes.data?.telefono || '',
+      profesional_nombre:     profesionalRes.data?.nombre_completo || '',
+      profesional_telefono:   profesionalRes.data?.telefono || '',
+      servicio_nombre:        servicioRes.data?.nombre || '',
+      servicio_precio:        servicioRes.data?.precio ?? null,
+    }
 
     return NextResponse.json({ success: true, data })
   } catch (e: any) {

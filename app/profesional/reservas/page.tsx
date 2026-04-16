@@ -106,7 +106,7 @@ export default function ReservasProfesionalPage() {
                     {r.cliente_nombre}
                   </p>
                   <p className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
-                    {r.servicio_nombre} · {formatearFechaHora(r.fecha_hora_inicio)}
+                    {r.servicio_nombre} · {formatearFechaHora(r.hora_inicio)}
                   </p>
                   {r.sena_monto > 0 && (
                     <p className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
@@ -131,7 +131,7 @@ export default function ReservasProfesionalPage() {
                   profesionalNombre:  r.profesional_nombre,
                   profesionalTelefono:r.profesional_telefono,
                   servicioNombre:     r.servicio_nombre,
-                  fechaHoraInicio:    r.fecha_hora_inicio,
+                  fechaHoraInicio:    r.hora_inicio,
                   empresaSlug:        r.empresa_slug,
                 }}
                 onActualizado={cargar}

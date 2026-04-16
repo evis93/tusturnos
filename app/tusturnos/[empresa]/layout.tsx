@@ -9,6 +9,7 @@
 import { resolveBySlug } from '@/src/services/TenantResolver';
 import { TenantProvider } from '@/src/context/TenantContext';
 import { ThemeProvider } from '@/src/context/ThemeContext';
+import { headers } from 'next/headers'
 
 interface Props {
   children: React.ReactNode;
@@ -17,7 +18,9 @@ interface Props {
 
 export default async function EmpresaLayout({ children, params }: Props) {
   const { empresa } = await params;
-  const tenant = await resolveBySlug(empresa);
+  const h = await headers();
+  const product = h.get('x-tenant-product') ?? 'tusturnos';
+  const tenant = await resolveBySlug(empresa, product);
 
   return (
     <TenantProvider tenant={tenant}>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/src/context/AuthContext';
+import Image from 'next/image';
 import { Store, User, Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 
 // Colores del diseño
@@ -47,7 +48,7 @@ export default function LoginPage() {
       setError(result.error?.message || 'Email o contraseña incorrectos');
       return;
     }
-    router.replace('/');
+    router.replace(tab === 'cliente' ? '/cliente' : '/');
   };
 
   return (
@@ -100,10 +101,25 @@ export default function LoginPage() {
             }}
           >
             <div style={{ position: 'relative', zIndex: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '3rem' }}>
-                <span style={{ fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.02em' }}>Tus Turnos</span>
+              <div style={{
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                backgroundColor: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                flexShrink: 0,
+              }}>
+                <Image
+                  src="/images/logoturnos.png"
+                  alt="TusTurnos"
+                  width={90}
+                  height={90}
+                  style={{ objectFit: 'contain' }}
+                />
               </div>
-
               <h1 style={{ fontSize: '2.75rem', fontWeight: 700, lineHeight: 1.2, marginBottom: '1.5rem' }}>
                 Gestionando el tiempo,{' '}
                 <span style={{ opacity: 0.8 }}>perfectamente compuesto.</span>
@@ -164,7 +180,7 @@ export default function LoginPage() {
           >
             {/* Header móvil */}
             <div className="mobile-header" style={{ alignItems: 'center', gap: '0.75rem', marginBottom: '3rem' }}>
-              <span style={{ fontWeight: 800, fontSize: '1.25rem', color: C.primary, letterSpacing: '-0.02em' }}>Tus Turnos</span>
+              <Image src="/images/logoturnos.png" alt="TusTurnos" width={140} height={42} style={{ objectFit: 'contain' }} />
             </div>
 
             <div style={{ maxWidth: '28rem', margin: '0 auto', width: '100%' }}>

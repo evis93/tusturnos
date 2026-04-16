@@ -128,35 +128,44 @@ CREATE TABLE public.resenas (
   CONSTRAINT resenas_cliente_id_fkey FOREIGN KEY (cliente_id) REFERENCES public.usuarios(id),
   CONSTRAINT resenas_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id)
 );
-CREATE TABLE public.reservas (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  empresa_id uuid NOT NULL,
-  cliente_id uuid NOT NULL,
-  profesional_id uuid NOT NULL,
-  servicio_id uuid NOT NULL,
-  fecha_hora_inicio timestamp with time zone NOT NULL,
-  fecha_hora_fin timestamp with time zone NOT NULL,
-  estado USER-DEFINED NOT NULL DEFAULT 'PENDIENTE'::reserva_estado,
-  estado_anterior text,
-  motivo_cambio text,
-  sena_monto numeric DEFAULT 0,
-  sena_estado USER-DEFINED DEFAULT 'PENDIENTE'::sena_estado,
-  sena_pago_id text,
-  sena_pago_provider text CHECK (sena_pago_provider = ANY (ARRAY['mercadopago'::text, 'stripe'::text])),
-  reserva_origen_id uuid,
-  notas_cliente text,
-  notas_profesional text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  created_by uuid,
-  CONSTRAINT reservas_pkey PRIMARY KEY (id),
-  CONSTRAINT reservas_empresa_id_fkey FOREIGN KEY (empresa_id) REFERENCES public.empresas(id),
-  CONSTRAINT reservas_cliente_id_fkey FOREIGN KEY (cliente_id) REFERENCES public.usuarios(id),
-  CONSTRAINT reservas_profesional_id_fkey FOREIGN KEY (profesional_id) REFERENCES public.usuarios(id),
-  CONSTRAINT reservas_servicio_id_fkey FOREIGN KEY (servicio_id) REFERENCES public.servicios(id),
-  CONSTRAINT reservas_reserva_origen_id_fkey FOREIGN KEY (reserva_origen_id) REFERENCES public.reservas(id),
-  CONSTRAINT reservas_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.usuarios(id)
-);
+create table public.reservas (
+  id uuid not null default gen_random_uuid (),
+  empresa_id uuid null,
+  cliente_id uuid null,
+  profesional_id uuid null,
+  autor_id uuid null,
+  servicio_id uuid null,
+  sucursal_id uuid null,
+  fecha date not null,
+  hora_inicio time without time zone not null,
+  estado text null default 'pendiente'::text,
+  pagado boolean null default false,
+  recordatorio_enviado boolean null default false,
+  created_at timestamp without time zone null default now(),
+  metodo_pago public.metodo_pago_enum null,
+  precio_total numeric null,
+  monto_seña numeric null,
+  seña_pagada boolean not null default false,
+  cliente_auth_user_id uuid null,
+  monto_restante numeric(10, 2) null,
+  nota text null,
+  cbu_alias text null,
+  constraint reservas_pkey primary key (id),
+  constraint reservas_cliente_auth_user_id_fkey foreign KEY (cliente_auth_user_id) references auth.users (id) on delete set null,
+  constraint reservas_cliente_id_fkey foreign KEY (cliente_id) references usuarios (id) on delete CASCADE,
+  constraint reservas_empresa_id_fkey foreign KEY (empresa_id) references empresas (id) on delete CASCADE,
+  constraint reservas_profesional_id_fkey foreign KEY (profesional_id) references usuarios (id),
+  constraint reservas_servicio_id_fkey foreign KEY (servicio_id) references servicios (id),
+  constraint reservas_autor_id_fkey foreign KEY (autor_id) references usuarios (id),
+  constraint reservas_sucursal_id_fkey foreign KEY (sucursal_id) references sucursales (id)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_reservas_fecha on public.reservas using btree (fecha) TABLESPACE pg_default;
+
+create index IF not exists idx_reservas_profesional_fecha on public.reservas using btree (profesional_id, fecha) TABLESPACE pg_default;
+
+create index IF not exists idx_reservas_cliente_auth_user_id on public.reservas using btree (cliente_auth_user_id) TABLESPACE pg_default;
+
 CREATE TABLE public.roles (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   nombre text NOT NULL UNIQUE,

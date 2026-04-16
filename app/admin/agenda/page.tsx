@@ -260,42 +260,6 @@ export default function AgendaPage() {
                               <ClipboardList size={13} />
                               Ficha
                             </button>
-                            {/* Cobrar */}
-{reserva.estado !== 'cancelada' && (
-                              <button
-                                className="text-xs px-3 py-1 rounded-lg"
-                                style={{ background: colors.primary, color: '#fff' }}
-                                onClick={e => { e.stopPropagation(); setPagoModal({ open: true, reserva }); }}
-                              >
-                                Cobrar
-                              </button>
-                            )}
-                            {/* Acceso app para el cliente */}
-                            {reserva.estado !== 'cancelada' && (reserva.consultante_id || reserva.cliente_id) && (
-                              <button
-                                className="text-xs px-3 py-1 rounded-lg"
-                                style={{ background: colors.primaryFaded, color: colors.primary }}
-                                title="Dar acceso a la app al cliente"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setAccesoModal({
-                                    open: true,
-                                    clienteId: reserva.consultante_id || reserva.cliente_id,
-                                    clienteNombre: reserva.consultante_nombre || '',
-                                    clienteTelefono: reserva.consultante_telefono || '',
-                                  });
-                                }}
-                              >
-                                📱 App
-                              </button>
-                            )}
-                            {/* Eliminar */}
-                            <button
-                              className="text-xs px-3 py-1 rounded-lg bg-red-50 text-red-600"
-                              onClick={e => { e.stopPropagation(); handleEliminarReserva(reserva.id); }}
-                            >
-                              Eliminar
-                            </button>
                           </div>
                         </div>
                       </div>

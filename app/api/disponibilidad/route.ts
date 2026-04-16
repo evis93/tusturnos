@@ -112,15 +112,14 @@ export async function GET(req: NextRequest) {
 
     const { data: reservasDB } = await sb
       .from('reservas')
-      .select('fecha_hora_inicio, fecha_hora_fin')
+      .select('hora_inicio')
       .eq('profesional_id', profesionalId)
       .in('estado', ['PENDIENTE', 'CONFIRMADA', 'CAMBIO_SOLICITADO'])
-      .gte('fecha_hora_inicio', diaInicio)
-      .lte('fecha_hora_inicio', diaFin)
+      .gte('hora_inicio', diaInicio)
+      .lte('hora_inicio', diaFin)
 
     const reservasOcupadas = (reservasDB ?? []).map((r: any) => ({
-      fechaHoraInicio: r.fecha_hora_inicio,
-      fechaHoraFin:    r.fecha_hora_fin,
+      fechaHoraInicio: r.hora_inicio,
     }))
 
     // 5. Calcular slots

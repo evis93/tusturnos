@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { supabase } from '@/src/config/supabase';
@@ -10,15 +10,6 @@ import ModalResena from '@/src/components/ModalResena';
 
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const DIAS  = ['dom','lun','mar','mié','jue','vie','sáb'];
-const AR_OFFSET_MS = -3 * 60 * 60 * 1000;
-
-function isoToAR(iso: string) {
-  const ar = new Date(new Date(iso).getTime() + AR_OFFSET_MS);
-  return {
-    fecha: ar.toISOString().split('T')[0],
-    hora:  ar.toISOString().split('T')[1].substring(0, 5),
-  };
-}
 
 function formatProxima(fecha: string, hora: string) {
   if (!fecha) return '';
@@ -40,7 +31,7 @@ function formatFechaHistorial(fechaStr: string) {
 export default function ClientePage() {
   const router = useRouter();
   const { colors, logoUrl } = useTheme();
-  const { profile, logout } = useAuth();
+  const { profile } = useAuth();
 
   const nombreCorto = profile?.nombre_completo?.split(' ')[0]?.toLowerCase() || 'hola';
 
@@ -57,20 +48,23 @@ export default function ClientePage() {
       const today = new Date().toISOString().split('T')[0];
 
       const res = await fetch(`/api/reservas?clienteId=${profile.usuarioId}&empresaId=${profile.empresaId}`);
+      if (!res.ok) { setLoading(false); return; }
       const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      if (!json.success) { setLoading(false); return; }
 
-      // Enriquecer con campos derivados de fecha_hora_inicio (AR local)
-      const todas = (json.data as any[]).map((r: any) => {
-        const ar = isoToAR(r.fecha_hora_inicio);
-        return { ...r, fecha: ar.fecha, hora_inicio: ar.hora, servicio: r.servicio_nombre };
-      });
+      // fecha y hora ya vienen normalizados desde la API (time without time zone)
+      const todas = (json.data as any[]).map((r: any) => ({
+        ...r,
+        servicio: r.servicio_nombre,
+      }));
 
       const proximas = todas
-        .filter((r: any) => r.fecha >= today && ['PENDIENTE', 'CONFIRMADA'].includes(r.estado))
-        .sort((a: any, b: any) => a.fecha_hora_inicio.localeCompare(b.fecha_hora_inicio));
+        .filter((r: any) => r.fecha >= today && ['pendiente', 'confirmada'].includes(r.estado?.toLowerCase()))
+        .sort((a: any, b: any) => a.hora_inicio.localeCompare(b.hora_inicio));
 
-      const pasadas = todas.filter((r: any) => r.fecha < today).slice(0, 3);
+      const pasadas = todas
+        .filter((r: any) => r.fecha < today && ['pendiente', 'confirmada', 'completada'].includes(r.estado?.toLowerCase()))
+        .slice(0, 3);
 
       setProximaSesion(proximas[0] || null);
       setHistorial(pasadas);
@@ -82,8 +76,8 @@ export default function ClientePage() {
         (resenasData || []).forEach((r: any) => { map[r.reserva_id] = r; });
         setResenasMap(map);
       }
-    } catch (e) {
-      console.error('[ClientePage]', e);
+    } catch {
+      // silenciar errores de API (ej. permisos) — mostrar estado vacío
     } finally {
       setLoading(false);
     }
@@ -99,12 +93,6 @@ export default function ClientePage() {
     if (!error) setResenasMap(prev => { const n = { ...prev }; delete n[reservaId]; return n; });
   };
 
-  const handleLogout = async () => {
-    if (!window.confirm('¿cerrar sesión?')) return;
-    await logout();
-    router.replace('/auth/login');
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
@@ -114,7 +102,7 @@ export default function ClientePage() {
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{ backgroundColor: colors.background }}>
+    <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
       {/* Header */}
       <header className="px-6 py-5 flex items-center justify-between">
         <div>
@@ -144,7 +132,7 @@ export default function ClientePage() {
                 )}
 
                 <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: colors.primary }}>
-                  {formatProxima(proximaSesion.fecha, proximaSesion.hora_inicio)}
+                  {formatProxima(proximaSesion.fecha, proximaSesion.hora)}
                 </p>
                 <p className="text-lg font-bold lowercase mb-1" style={{ color: colors.text }}>
                   {proximaSesion.servicio || 'sesión'}
@@ -270,21 +258,6 @@ export default function ClientePage() {
         onGuardado={() => { setReservaParaResena(null); cargar(); }}
       />
 
-      {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 border-t flex justify-between px-6 py-3" style={{ borderColor: colors.borderLight }}>
-        <Link href="/cliente/reservar" className="flex flex-col items-center gap-0.5">
-          <span className="text-lg">📅</span>
-          <span className="text-xs lowercase" style={{ color: colors.textMuted }}>sesiones</span>
-        </Link>
-        <button className="flex flex-col items-center gap-0.5">
-          <span className="text-lg">👤</span>
-          <span className="text-xs lowercase" style={{ color: colors.textMuted }}>perfil</span>
-        </button>
-        <button onClick={handleLogout} className="flex flex-col items-center gap-0.5">
-          <span className="text-lg">🚪</span>
-          <span className="text-xs font-bold lowercase" style={{ color: colors.error }}>salir</span>
-        </button>
-      </nav>
     </div>
   );
 }

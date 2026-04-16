@@ -101,7 +101,7 @@ export class ReservaClienteController {
     }
   }
 
-  // Slots ya ocupados para un profesional en una fecha (hora_inicio como 'HH:MM')
+  // Slots ya ocupados para un profesional en una fecha (devuelve array 'HH:MM')
   static async obtenerSlotsOcupados(profesionalId, fecha) {
     try {
       const { data, error } = await supabase
@@ -109,12 +109,15 @@ export class ReservaClienteController {
         .select('hora_inicio')
         .eq('profesional_id', profesionalId)
         .eq('fecha', fecha)
-        .not('estado', 'in', '("cancelada","rechazada")');
+        .not('estado', 'in', '("cancelada","rechazada","CANCELADA","RECHAZADA","CANCELADO","RECHAZADO")');
 
       if (error) throw error;
 
-      // Normalizar a 'HH:MM' para comparar con los slots generados
-      const ocupados = (data || []).map(r => r.hora_inicio?.substring(0, 5));
+      // hora_inicio es timestamp without time zone → "YYYY-MM-DDTHH:MM:SS" → extraer HH:MM (pos 11-16)
+      const ocupados = (data || [])
+        .map(r => r.hora_inicio?.substring(11, 16))
+        .filter(Boolean);
+
       return { success: true, data: ocupados };
     } catch (error) {
       console.error('[ReservaClienteController.obtenerSlotsOcupados]', error);
@@ -159,30 +162,28 @@ export class ReservaClienteController {
     }
   }
 
-  // Crea la solicitud de turno con estado 'pendiente'
-  static async solicitarReserva({ empresaId, profesionalId, clienteId, servicioId, fecha, horaInicio, precioTotal, montoSeña }) {
+  // Crea la solicitud de turno con estado 'PENDIENTE' vía API (service role)
+  static async solicitarReserva({ empresaId, profesionalId, clienteId, servicioId, sucursalId, fecha, horaInicio }) {
     try {
-      const { data, error } = await supabase
-        .from('reservas')
-        .insert([{
-          empresa_id: empresaId,
-          profesional_id: profesionalId,
-          cliente_id: clienteId,
-          autor_id: clienteId,
-          servicio_id: servicioId || null,
-          fecha,
-          hora_inicio: `${horaInicio}:00`,
-          estado: 'pendiente',
-          precio_total: precioTotal ?? null,
-          monto_seña: montoSeña ?? null,
-          seña_pagada: false,
-          pagado: false,
-        }])
-        .select()
-        .single();
+      // Combinar fecha + hora en string local (hora_inicio es timestamp without time zone)
+      const fechaHoraInicio = `${fecha}T${horaInicio}:00`;
 
-      if (error) throw error;
-      return { success: true, data };
+      const res = await fetch('/api/reservas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresaId,
+          profesionalId,
+          clienteId,
+          servicioId: servicioId || null,
+          sucursalId: sucursalId || null,
+          fechaHoraInicio,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) return { success: false, error: json.error || 'Error al crear reserva' };
+      return { success: true, data: json.data };
     } catch (error) {
       console.error('[ReservaClienteController.solicitarReserva]', error);
       return { success: false, error: error.message };

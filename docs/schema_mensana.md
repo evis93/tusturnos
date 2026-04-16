@@ -1,7 +1,5 @@
 # Database Schema - Mensana / TusTurnos
 
-# Database Schema - Mensana / TusTurnos
-
 ## Overview
 
 Este documento describe la estructura de la base de datos principal del sistema. Incluye tablas, relaciones e índices relevantes para el dominio de turnos, usuarios, empresas y pagos.

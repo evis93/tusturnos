@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useSucursal } from '@/src/context/SucursalContext';
 import { ReservaClienteController } from '@/src/controllers/ReservaClienteController';
 
 const DIAS_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -22,14 +23,11 @@ function fechaISO(date: Date) {
   return date.toISOString().split('T')[0];
 }
 
-function formatearFechaLarga(date: Date) {
-  return `${DIAS_CORTO[date.getDay()]} ${date.getDate()} de ${MESES[date.getMonth()]}`;
-}
-
 export default function ReservarPage() {
   const router = useRouter();
-  const { profile, logout } = useAuth();
+  const { profile } = useAuth();
   const { colors } = useTheme();
+  const { sucursalActiva } = useSucursal();
 
   const color = profile?.colorPrimario || colors.primary;
 
@@ -68,9 +66,9 @@ export default function ReservarPage() {
         setProfesionales(resProf.data);
         setProfSeleccionado(resProf.data[0]);
       }
-      if (resSvc.success) {
+      if (resSvc.success && resSvc.data.length > 0) {
         setServicios(resSvc.data);
-        if (resSvc.data.length > 0) setServicioSeleccionado(resSvc.data[0]);
+        setServicioSeleccionado(resSvc.data[0]);
       }
       setCargandoDatos(false);
     }
@@ -120,6 +118,7 @@ export default function ReservarPage() {
       profesionalId: profSeleccionado.id,
       clienteId: profile!.usuarioId,
       servicioId: servicioSeleccionado?.id || null,
+      sucursalId: sucursalActiva?.id || null,
       fecha: fechaISO(diaSeleccionado),
       horaInicio: slotSeleccionado,
     });
@@ -132,16 +131,7 @@ export default function ReservarPage() {
     }
   };
 
-  const handleLogout = async () => {
-    if (!window.confirm('¿cerrar sesión?')) return;
-    await logout();
-    router.replace('/auth/login');
-  };
-
   const puedeEnviar = profSeleccionado && slotSeleccionado && diaSeleccionado && !enviando;
-  const resumenFecha = diaSeleccionado ? formatearFechaLarga(diaSeleccionado) : '—';
-  const resumenPrecio = servicioSeleccionado?.precio
-    ? `$${Number(servicioSeleccionado.precio).toLocaleString('es-AR')}` : null;
 
   if (cargandoDatos) {
     return (
@@ -160,7 +150,7 @@ export default function ReservarPage() {
         <h1 className="text-base font-bold">{profile?.empresaNombre || 'Reservar turno'}</h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto pb-48">
+      <div className="flex-1 overflow-y-auto pb-24">
         {/* Profesionales */}
         <div className="px-5 py-4 border-b border-blue-50">
           <p className="text-base font-bold text-gray-800 mb-3">Seleccioná un profesional</p>
@@ -196,7 +186,7 @@ export default function ReservarPage() {
                     style={activo
                       ? { backgroundColor: color, borderColor: color, color: '#fff' }
                       : { backgroundColor: '#fff', borderColor: '#d0e8f5', color: '#475569' }}>
-                    {svc.nombre}{svc.precio ? `  ·  $${Number(svc.precio).toLocaleString('es-AR')}` : ''}
+                    {svc.nombre}{svc.precio ? ` · $${Number(svc.precio).toLocaleString('es-AR')}` : ''}
                   </button>
                 );
               })}
@@ -313,33 +303,11 @@ export default function ReservarPage() {
               )}
             </>
           )}
-
-          {slotSeleccionado && (
-            <div className="mt-4 flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-              <span>ℹ️</span>
-              <p className="text-xs text-yellow-800">
-                Tu reserva quedará <strong>pendiente de confirmación</strong> por parte del centro.
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Footer fijo */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t px-5 py-4 space-y-3" style={{ borderColor: '#e1f5fe' }}>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Resumen de turno</p>
-            <p className="text-sm font-bold text-gray-800 mt-0.5">{resumenFecha} · {slotSeleccionado || '—'}</p>
-            {profSeleccionado && <p className="text-xs text-gray-500">{profSeleccionado.nombre_completo}</p>}
-          </div>
-          {resumenPrecio && (
-            <div className="text-right">
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Precio</p>
-              <p className="text-base font-bold" style={{ color }}>{resumenPrecio}</p>
-            </div>
-          )}
-        </div>
+      <div className="fixed bottom-0 left-60 right-0 bg-white border-t px-5 py-4" style={{ borderColor: '#e1f5fe' }}>
         <button
           onClick={handleSolicitar}
           disabled={!puedeEnviar}
@@ -347,10 +315,6 @@ export default function ReservarPage() {
           style={{ backgroundColor: color }}>
           {enviando ? <span className="animate-spin">⏳</span> : '📅'} Solicitar Reserva
         </button>
-        <div className="flex justify-between text-xs text-gray-400">
-          <button onClick={() => router.replace('/cliente')}>‹ volver</button>
-          <button onClick={handleLogout} className="text-red-400">salir</button>
-        </div>
       </div>
     </div>
   );

@@ -66,14 +66,38 @@ export async function PATCH(
     const sb = adminClient()
 
     // Cargar reserva con detalle completo
-    const { data: reserva, error: reservaError } = await sb
-      .from('v_reservas_detalle')
+    const { data: reservaBase, error: reservaError } = await sb
+      .from('reservas')
       .select('*')
       .eq('id', reservaId)
       .single()
 
-    if (reservaError || !reserva) {
+    if (reservaError || !reservaBase) {
       return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
+    }
+
+    // Enrich with related data
+    const [clienteRes, profesionalRes, servicioRes] = await Promise.all([
+      reservaBase.cliente_id
+        ? sb.from('usuarios').select('id, nombre_completo, telefono').eq('id', reservaBase.cliente_id).single()
+        : { data: null },
+      reservaBase.profesional_id
+        ? sb.from('usuarios').select('id, nombre_completo, telefono').eq('id', reservaBase.profesional_id).single()
+        : { data: null },
+      reservaBase.servicio_id
+        ? sb.from('servicios').select('id, nombre').eq('id', reservaBase.servicio_id).single()
+        : { data: null },
+    ])
+
+    const reserva = {
+      ...reservaBase,
+      cliente_usuario_id:    reservaBase.cliente_id,
+      profesional_usuario_id: reservaBase.profesional_id,
+      cliente_nombre:         clienteRes.data?.nombre_completo || '',
+      cliente_telefono:       clienteRes.data?.telefono || '',
+      profesional_nombre:     profesionalRes.data?.nombre_completo || '',
+      profesional_telefono:   profesionalRes.data?.telefono || '',
+      servicio_nombre:        servicioRes.data?.nombre || '',
     }
 
     // Validar transición
@@ -101,7 +125,7 @@ export async function PATCH(
       profesionalNombre: reserva.profesional_nombre,
       clienteNombre:     reserva.cliente_nombre,
       servicio:          reserva.servicio_nombre,
-      fechaHora:         formatearFechaHora(reserva.fecha_hora_inicio),
+      fechaHora:         formatearFechaHora(reserva.hora_inicio),
       linkReserva:       `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/cliente/reservas/${reservaId}`,
     }
 
@@ -111,34 +135,23 @@ export async function PATCH(
 
     // ── CONFIRMADA: crear ficha ──────────────────────────────────────────────
     if (estado === 'CONFIRMADA') {
-      // Buscar usuario_empresa_id del cliente en esta empresa
-      const { data: ue } = await sb
-        .from('usuario_empresa')
-        .select('id')
-        .eq('usuario_id', reserva.cliente_usuario_id)
-        .eq('empresa_id', reserva.empresa_id)
-        .maybeSingle()
-
-      if (ue) {
-        // Convertir TIMESTAMPTZ a hora local Argentina (UTC-3, sin DST)
-        const fechaInicio  = new Date(reserva.fecha_hora_inicio)
-        const AR_OFFSET_MS = -3 * 60 * 60 * 1000
-        const arTime       = new Date(fechaInicio.getTime() + AR_OFFSET_MS)
-        const fechaStr     = arTime.toISOString().split('T')[0]
-        const horaStr      = arTime.toISOString().split('T')[1].substring(0, 5)  // "HH:MM" AR local
-        const notaDefecto  = `${fechaStr} - ${reserva.servicio_nombre}`
+      if (reserva.sucursal_id) {
+        const AR_OFFSET_MS  = -3 * 60 * 60 * 1000
+        const arTime        = new Date(new Date(reserva.hora_inicio).getTime() + AR_OFFSET_MS)
+        const fechaStr      = arTime.toISOString().split('T')[0]
+        const horaStr       = arTime.toISOString().split('T')[1].substring(0, 5)
+        const notaDefecto   = `${fechaStr} - ${reserva.servicio_nombre}`
 
         const { data: ficha, error: fichaError } = await sb
           .from('fichas')
           .insert({
-            usuario_empresa_id: ue.id,
-            empresa_id:         reserva.empresa_id,
-            profesional_id:     reserva.profesional_usuario_id,
-            servicio_id:        reserva.servicio_id,
-            servicio_nombre:    reserva.servicio_nombre,
-            fecha:              fechaStr,
-            hora:               horaStr,
-            nota:               notaDefecto,
+            cliente_id:     reserva.cliente_usuario_id,
+            sucursal_id:    reserva.sucursal_id,
+            profesional_id: reserva.profesional_usuario_id,
+            servicio_id:    reserva.servicio_id,
+            fecha:          fechaStr,
+            hora:           horaStr,
+            nota:           notaDefecto,
           })
           .select('id')
           .single()
@@ -193,8 +206,7 @@ export async function PATCH(
             cliente_id:        reserva.cliente_usuario_id,
             profesional_id:    reserva.profesional_usuario_id,
             servicio_id:       reserva.servicio_id,
-            fecha_hora_inicio: nuevaInicio.toISOString(),
-            fecha_hora_fin:    nuevaFin.toISOString(),
+            hora_inicio: nuevaInicio.toISOString(),
             estado:            'PENDIENTE',
             sena_monto:        reserva.sena_monto,
             sena_estado:       reserva.sena_estado,

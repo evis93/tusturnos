@@ -38,7 +38,10 @@ export default function ReportesPage() {
   const { colors } = useTheme();
 
   const [fecha, setFecha] = useState(() => {
-    const d = new Date();
+    const guardada = typeof window !== 'undefined'
+      ? localStorage.getItem('agenda_fecha_seleccionada')
+      : null;
+    const d = guardada ? new Date(guardada + 'T12:00:00') : new Date();
     d.setHours(12, 0, 0, 0);
     return d;
   });
@@ -65,6 +68,7 @@ export default function ReportesPage() {
     setFecha(prev => {
       const d = new Date(prev);
       d.setDate(d.getDate() + dir);
+      localStorage.setItem('agenda_fecha_seleccionada', formatFechaISO(d));
       return d;
     });
   };

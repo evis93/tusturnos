@@ -6,6 +6,7 @@ import { ReservaController } from '@/src/controllers/ReservaController';
 import { ConsultanteController } from '@/src/controllers/ConsultanteController';
 import { DatabaseService } from '@/src/services/database.service';
 import { X, Search, Loader2 } from 'lucide-react';
+import TelefonoInput from '@/src/components/ui/TelefonoInput';
 
 const HORARIOS_DISPONIBLES = Array.from({ length: 27 }, (_, i) => {
   const h = Math.floor(i / 2) + 8;
@@ -24,9 +25,13 @@ interface Props {
   reservaEditar?: any | null;
   profesionales: any[];
   profile: any;
+  /** Si se pasa, pre-rellena el cliente y bloquea la búsqueda (uso desde la vista de cliente) */
+  clientePreset?: { id: string | null; nombre: string; email: string; telefono?: string };
+  /** Profesional pre-seleccionado (uso desde la vista de cliente) */
+  profesionalIdInicial?: string;
 }
 
-export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCreado, fecha, horaInicial, reservaEditar, profesionales, profile }: Props) {
+export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCreado, fecha, horaInicial, reservaEditar, profesionales, profile, clientePreset, profesionalIdInicial }: Props) {
   const { colors } = useTheme();
 
   const [consultanteSearch, setConsultanteSearch] = useState('');
@@ -90,19 +95,19 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
         setPrecioBase(''); // no auto-computar al editar
       } else {
         setForm({
-          consultante_id: null,
-          consultante_nombre: '',
-          consultante_email: '',
-          consultante_telefono: '',
+          consultante_id: clientePreset?.id ?? null,
+          consultante_nombre: clientePreset?.nombre ?? '',
+          consultante_email: clientePreset?.email ?? '',
+          consultante_telefono: clientePreset?.telefono ?? '',
           hora_inicio: horaInicial || '',
-          profesional_id: profile?.profesionalId || '',
+          profesional_id: profesionalIdInicial || profile?.profesionalId || '',
           tipo_sesion_id: null,
           precio_total: '',
           monto_seña: '',
           descuento_pct: '',
           descuento_fijo: '',
         });
-        setConsultanteSearch('');
+        setConsultanteSearch(clientePreset?.nombre ?? '');
         setPrecioBase('');
       }
     }
@@ -232,55 +237,61 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
           </div>
 
           {/* Búsqueda de consultante */}
-          <div className="relative">
-            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Cliente *</label>
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={consultanteSearch}
-                onChange={e => buscarConsultante(e.target.value)}
-                placeholder="Buscar por nombre o email..."
-                className="w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ borderColor: colors.border }}
-              />
-              {isSearching && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-400" />}
+          {clientePreset ? (
+            <div className="bg-gray-50 rounded-xl px-4 py-2.5">
+              <p className="text-xs" style={{ color: colors.textSecondary }}>Cliente</p>
+              <p className="font-semibold text-sm" style={{ color: colors.text }}>{clientePreset.nombre}</p>
+              {clientePreset.email && <p className="text-xs" style={{ color: colors.textSecondary }}>{clientePreset.email}</p>}
             </div>
-            {consultantesFiltrados.length > 0 && (
-              <div className="absolute z-10 w-full bg-white border rounded-xl shadow-lg mt-1 max-h-40 overflow-y-auto" style={{ borderColor: colors.border }}>
-                {consultantesFiltrados.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => seleccionarConsultante(c)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition text-sm border-b last:border-0"
-                    style={{ borderColor: colors.borderLight, color: colors.text }}
-                  >
-                    {c.nombre_completo}
-                    {c.email && <span className="text-xs ml-2" style={{ color: colors.textSecondary }}>{c.email}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Datos del consultante si es nuevo */}
-          {!form.consultante_id && consultanteSearch && (
-            <div className="space-y-2 bg-gray-50 rounded-xl p-3">
-              <p className="text-xs font-medium" style={{ color: colors.textSecondary }}>Datos del nuevo cliente</p>
-              {[
-                { key: 'consultante_email', label: 'Email', type: 'email', placeholder: 'email@ejemplo.com' },
-                { key: 'consultante_telefono', label: 'Teléfono', type: 'tel', placeholder: '+54 11...' },
-              ].map(f => (
+          ) : (
+            <div className="relative">
+              <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Cliente *</label>
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
-                  key={f.key}
-                  type={f.type}
-                  value={(form as any)[f.key]}
-                  onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                  placeholder={f.placeholder}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="text"
+                  value={consultanteSearch}
+                  onChange={e => buscarConsultante(e.target.value)}
+                  placeholder="Buscar por nombre o email..."
+                  className="w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   style={{ borderColor: colors.border }}
                 />
-              ))}
+                {isSearching && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-400" />}
+              </div>
+              {consultantesFiltrados.length > 0 && (
+                <div className="absolute z-10 w-full bg-white border rounded-xl shadow-lg mt-1 max-h-40 overflow-y-auto" style={{ borderColor: colors.border }}>
+                  {consultantesFiltrados.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => seleccionarConsultante(c)}
+                      className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition text-sm border-b last:border-0"
+                      style={{ borderColor: colors.borderLight, color: colors.text }}
+                    >
+                      {c.nombre_completo}
+                      {c.email && <span className="text-xs ml-2" style={{ color: colors.textSecondary }}>{c.email}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Datos del consultante si es nuevo */}
+          {!clientePreset && !form.consultante_id && consultanteSearch && (
+            <div className="space-y-2 bg-gray-50 rounded-xl p-3">
+              <p className="text-xs font-medium" style={{ color: colors.textSecondary }}>Datos del nuevo cliente</p>
+              <input
+                type="email"
+                value={form.consultante_email}
+                onChange={e => setForm(prev => ({ ...prev, consultante_email: e.target.value }))}
+                placeholder="email@ejemplo.com"
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ borderColor: colors.border }}
+              />
+              <TelefonoInput
+                value={form.consultante_telefono}
+                onChange={v => setForm(prev => ({ ...prev, consultante_telefono: v }))}
+              />
             </div>
           )}
 

@@ -98,7 +98,7 @@ export default function DetalleReservaPage() {
       <div className="bg-white rounded-xl border p-4 mb-4" style={{ borderColor: colors.border }}>
         <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: colors.textSecondary }}>Turno</p>
         <Fila label="Servicio"  valor={reserva.servicio_nombre} />
-        <Fila label="Fecha"     valor={formatearFechaHora(reserva.fecha_hora_inicio)} />
+        <Fila label="Fecha"     valor={formatearFechaHora(reserva.hora_inicio)} />
         <Fila label="Duración"  valor={`${reserva.duracion_minutos} min`} />
         {reserva.servicio_precio && <Fila label="Precio" valor={`$${reserva.servicio_precio}`} />}
         <Fila label="Modalidad" valor={reserva.servicio_modalidad === 'presencial' ? 'Presencial' : reserva.servicio_modalidad === 'no_presencial' ? 'No presencial' : 'Ambas'} />
@@ -143,7 +143,7 @@ export default function DetalleReservaPage() {
             profesionalNombre:   reserva.profesional_nombre,
             profesionalTelefono: reserva.profesional_telefono,
             servicioNombre:      reserva.servicio_nombre,
-            fechaHoraInicio:     reserva.fecha_hora_inicio,
+            fechaHoraInicio:     reserva.hora_inicio,
             empresaSlug:         reserva.empresa_slug,
           }}
           onActualizado={cargar}

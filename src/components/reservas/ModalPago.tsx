@@ -41,30 +41,39 @@ export default function ModalPago({ open, onClose, onSaved, reserva, profile }: 
 
   useEffect(() => {
     if (!open || !reserva) return;
+    (async () => {
+      setMetodoPago(reserva.metodo_pago || null);
+      setPagado(reserva.pagado || false);
+      setMontoSena(reserva.monto_seña != null ? reserva.monto_seña.toString() : '');
+      setSenaPagada(reserva.seña_pagada || false);
+      setNota('');
+      setErrorMetodo(false);
+      setErrorGuardar(null);
+      setPrecioServicio(null);
 
-    setMetodoPago(reserva.metodo_pago || null);
-    setPagado(reserva.pagado || false);
-    setMontoSena(reserva.monto_seña != null ? reserva.monto_seña.toString() : '');
-    setSenaPagada(reserva.seña_pagada || false);
-    setNota('');
-    setErrorMetodo(false);
-    setErrorGuardar(null);
-    setPrecioServicio(null);
+      // Monto inicial desde precio_total guardado o vacío hasta que llegue el servicio
+      setMonto(reserva.precio_total ? reserva.precio_total.toString() : '');
 
-    // Monto inicial desde precio_total guardado o vacío hasta que llegue el servicio
-    setMonto(reserva.precio_total ? reserva.precio_total.toString() : '');
+      // Traer nota desde la BD (ReservaModel no la mapea)
+      if (reserva.id) {
+        const { data: reservaDB } = await supabase
+          .from('reservas')
+          .select('nota')
+          .eq('id', reserva.id)
+          .single();
+        setNota(reservaDB?.nota || '');
+      }
 
-    if (reserva.servicio_id) {
-      supabase
-        .from('servicios')
-        .select('nombre, precio, sena_tipo, sena_valor')
-        .eq('id', reserva.servicio_id)
-        .single()
-        .then(({ data }) => {
-          if (!data) return;
+      if (reserva.servicio_id) {
+        const { data } = await supabase
+          .from('servicios')
+          .select('nombre, precio, sena_tipo, sena_valor')
+          .eq('id', reserva.servicio_id)
+          .single();
+
+        if (data) {
           setPrecioServicio(data);
 
-          // Usar precio_total de la reserva si existe (puede incluir descuentos aplicados al crear)
           const base = reserva.precio_total
             ? parseFloat(reserva.precio_total)
             : (data.precio ? parseFloat(data.precio) : null);
@@ -76,8 +85,9 @@ export default function ModalPago({ open, onClose, onSaved, reserva, profile }: 
             : base;
 
           setMonto(sugerido.toString());
-        });
-    }
+        }
+      }
+    })();
   }, [open, reserva]);
 
   const senaSugerida = precioServicio?.sena_valor
@@ -179,7 +189,14 @@ export default function ModalPago({ open, onClose, onSaved, reserva, profile }: 
 
           {/* Monto */}
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Monto a cobrar</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>
+              Monto a cobrar
+              {senaPagada && montoSena !== '' && parseFloat(montoSena) > 0 && reserva?.precio_total && (
+                <span className="ml-2 text-xs font-normal" style={{ color: colors.textSecondary }}>
+                  (${reserva.precio_total} − seña ${montoSena} = ${Math.max(0, parseFloat(reserva.precio_total) - parseFloat(montoSena)).toFixed(2)})
+                </span>
+              )}
+            </label>
             <input
               type="number"
               value={monto}
