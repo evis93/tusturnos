@@ -9,7 +9,7 @@ const BASE: DatosNotificacion = {
   clienteNombre: 'Juan Pérez',
   servicio: 'Consulta Psicología',
   fechaHora: 'lunes 30/03 a las 10:00',
-  linkReserva: 'https://mensana.com.ar/reservas/abc123',
+  linkReserva: 'https://tusturnos.ar/reservas/abc123',
 }
 
 const BASE_CON_DIRECCION: DatosNotificacion = {

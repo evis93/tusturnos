@@ -18,7 +18,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isProfesional: boolean;
   isCliente: boolean;
-  isMensana: boolean;
+  isTusTurnos: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -35,7 +35,7 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   isProfesional: false,
   isCliente: false,
-  isMensana: false,
+  isTusTurnos: false,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -102,7 +102,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         esAdmin: rol === 'admin' || rol === 'superadmin',
         esProfesional: rol === 'profesional' || rol === 'admin' || rol === 'superadmin',
         esCliente: rol === 'cliente',
-        esMensana: rol === 'superadmin',
+        esTusTurnos: rol === 'superadmin',
         colorPrimario: data.color_primary,
         colorSecundario: data.color_secondary,
         colorBackground: data.color_background,
@@ -245,7 +245,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isAdmin: profile?.esAdmin ?? false,
         isProfesional: profile?.esProfesional ?? false,
         isCliente: profile?.esCliente ?? false,
-        isMensana: profile?.esMensana ?? false,
+        isTusTurnos: profile?.esTusTurnos ?? false,
       }}
     >
       {children}

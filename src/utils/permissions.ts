@@ -36,7 +36,7 @@ export interface Profile {
   esAdmin?: boolean;
   esProfesional?: boolean;
   esCliente?: boolean;
-  esMensana?: boolean;
+  esTusTurnos?: boolean;
   colorPrimario?: string | null;
   colorSecundario?: string | null;
   colorBackground?: string | null;

@@ -59,7 +59,7 @@ export default function LoginPage() {
           )}
           <h1 className="text-2xl font-bold" style={{ color: colors.text }}>Bienvenido</h1>
           <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-            Ingresá a {empresaNombre ? `${empresaNombre}` : 'tu cuenta de Mensana'}
+            Ingresá a {empresaNombre ? `${empresaNombre}` : 'tu cuenta de Tus Turnos'}
           </p>
         </div>
 

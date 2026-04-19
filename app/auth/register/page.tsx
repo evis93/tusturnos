@@ -68,7 +68,7 @@ export default function RegisterPage() {
             M
           </div>
           <h1 className="text-2xl font-bold text-gray-800">Crear cuenta</h1>
-          <p className="text-gray-500 text-sm mt-1">Registrate en Mensana</p>
+          <p className="text-gray-500 text-sm mt-1">Registrate en Tus Turnos</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -34,7 +34,7 @@ interface ThemeContextType {
   loading: boolean;
 }
 
-const DEFAULT_LOGO = '/images/logoMensana.png';
+const DEFAULT_LOGO = '/images/logoturnos.png';
 
 // Logos locales por empresa — evita depender del archivo en Supabase Storage
 const LOCAL_LOGOS: Record<string, string> = {
@@ -100,12 +100,12 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Prioridad:
   //   1. profile autenticado (post-login) — mayor prioridad
-  //   2. tenant resuelto server-side (páginas /mensana/[slug]/*)
+  //   2. tenant resuelto server-side (páginas /tusturnos/[slug]/*)
   //   3. businessBranding (QR/localStorage, fallback legacy)
-  //   4. Defaults de Mensana
+  //   4. Defaults de Tus Turnos
   const value = useMemo<ThemeContextType>(() => {
     // Tenant server-side primero: ya está resuelto antes de que auth cargue.
-    // Evita el flash de colores de Mensana durante authLoading.
+    // Evita el flash de colores por defecto durante authLoading.
     if (tenant && !profile?.empresaId) {
       return {
         themeId: `tenant-${tenant.id}`,

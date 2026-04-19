@@ -612,7 +612,7 @@ router.pushPublic('/login')    // Fuerza ruta pública
 ### Públicas (`app/(public)/`)
 - **login** → Formulario email/password → `AuthContext.login()`
 - **welcome** → Pantalla de bienvenida / onboarding
-- **home-mensana** → Landing del proveedor white-label
+- **home-tusturnos** → Landing del proveedor white-label
 - **explorar-profesionales** → Directorio público de profesionales
 - **catalogo-servicios** → Catálogo público de servicios
 - **auth/register** → Formulario de registro
@@ -833,11 +833,11 @@ npm test -- --watch               # Modo watch
 ### Arquitectura multi-tenant web
 
 ```
-Request (empresa.mensana.com.ar  ó  custom-domain.com)
+Request (empresa.tusturnos.ar  ó  custom-domain.com)
         ↓
 middleware.ts  ← lee Host header, resuelve slug
         ↓
-Rewrite interno a /mensana/[slug]/...
+Rewrite interno a /tusturnos/[slug]/...
         ↓
 app/layout.tsx (async)  ← pasa initialSlug vía headers
         ↓
@@ -847,18 +847,18 @@ Rutas protegidas por rol  (AuthContext)
 ```
 
 **Dos modalidades de tenant:**
-- **Free/Beta:** subdominio `empresa.mensana.com.ar` — wildcard DNS en Cloudflare
+- **Free/Beta:** subdominio `empresa.tusturnos.ar` — wildcard DNS en Cloudflare
 - **Pro:** dominio propio con CNAME → `cname.vercel-dns.com` (configurado en `/admin/dominio`)
 
 **Archivos clave del multi-tenant:**
 
 | Archivo | Propósito |
 |---------|-----------|
-| `middleware.ts` | Detecta subdominio/custom domain, reescribe a `/mensana/[slug]` |
+| `middleware.ts` | Detecta subdominio/custom domain, reescribe a `/tusturnos/[slug]` |
 | `src/lib/tenant-server.ts` | Server-side: resolución de tenant por slug o dominio |
 | `src/context/BusinessContext.tsx` | Carga branding por tenant (acepta `initialSlug` SSR) |
 | `app/layout.tsx` | Root layout async: lee headers del middleware, pasa initialSlug |
-| `app/mensana/layout.tsx` | Superadmin layout — bypasea auth para rutas públicas |
+| `app/tusturnos/layout.tsx` | Superadmin layout — bypasea auth para rutas públicas |
 
 ---
 
@@ -867,11 +867,11 @@ Rutas protegidas por rol  (AuthContext)
 #### Públicas (sin autenticación)
 | Ruta | Descripción |
 |------|-------------|
-| `/mensana/[empresa]` | Landing pública del tenant → redirige al login |
-| `/mensana/[empresa]/catalogo` | Catálogo de servicios público (white-label) |
-| `/mensana/[empresa]/auth/login` | Login por tenant |
-| `/mensana/[empresa]/auth/register` | Registro por tenant |
-| `/mensana/[empresa]/auth/recuperar-contrasena` | Recuperación de contraseña |
+| `/tusturnos/[empresa]` | Landing pública del tenant → redirige al login |
+| `/tusturnos/[empresa]/catalogo` | Catálogo de servicios público (white-label) |
+| `/tusturnos/[empresa]/auth/login` | Login por tenant |
+| `/tusturnos/[empresa]/auth/register` | Registro por tenant |
+| `/tusturnos/[empresa]/auth/recuperar-contrasena` | Recuperación de contraseña |
 
 #### Autenticadas — Cliente
 | Ruta | Descripción | Controladores |
@@ -905,7 +905,7 @@ Rutas protegidas por rol  (AuthContext)
 #### Autenticadas — Superadmin
 | Ruta | Descripción |
 |------|-------------|
-| `/mensana` | Portal: lista todas las empresas del sistema |
+| `/tusturnos` | Portal: lista todas las empresas del sistema |
 
 #### Cuenta
 | Ruta | Descripción |
@@ -942,7 +942,7 @@ Rutas protegidas por rol  (AuthContext)
 
 ### PWA
 
-- Service Worker dinámico: cache name `mensana-{slug}-v1` (aislado por tenant)
+- Service Worker dinámico: cache name `tusturnos-{slug}-v1` (aislado por tenant)
 - Manifest con nombre, colores e iconos del branding del tenant
 - Scope desde `/` (header `Service-Worker-Allowed: /`)
 - Página offline en `/offline`

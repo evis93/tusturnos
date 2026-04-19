@@ -109,7 +109,7 @@ export async function resolveTenantBySlug(
 /**
  * Busca empresa por dominio propio (columna `url`).
  * Devuelve 'plan-not-allowed' si la empresa existe pero su plan no permite
- * dominio propio — para poder redirigir al dominio de Mensana.
+ * dominio propio — para poder redirigir al dominio de TusTurnos.
  */
 export async function resolveTenantByUrl(
   domain: string,
@@ -134,7 +134,7 @@ export async function resolveTenantByUrl(
  * devuelve el tenant resuelto con su fuente.
  *
  * Para custom domains también valida el plan. Si el plan no lo permite,
- * `redirect` contiene la URL canónica de Mensana a donde redirigir.
+ * `redirect` contiene la URL canónica de TusTurnos a donde redirigir.
  *
  * Uso en Server Component:
  *   import { headers } from 'next/headers';
@@ -160,7 +160,7 @@ export async function resolveTenantFromHeaders(
     const result = await resolveTenantByUrl(customDomain);
 
     if (result === 'plan-not-allowed') {
-      // Buscar el slug para armar la URL canónica de Mensana
+      // Buscar el slug para armar la URL canónica de TusTurnos
       const { data } = await getSupabase()
         .from('empresas')
         .select('slug')
@@ -170,7 +170,7 @@ export async function resolveTenantFromHeaders(
       return {
         tenant: null,
         source,
-        redirect: `https://${process.env.MENSANA_DOMAIN ?? 'mensana.com.ar'}/e/${fallbackSlug}`,
+        redirect: `https://${process.env.TUSTURNOS_DOMAIN ?? 'tusturnos.ar'}/e/${fallbackSlug}`,
       };
     }
 

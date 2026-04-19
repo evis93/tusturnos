@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
  * Lee el subdominio o custom domain desde los headers del middleware
  * (x-tenant-slug / x-custom-domain) y adapta nombre, colores e iconos.
  *
- * Sin tenant activo devuelve el manifest de Mensana por defecto.
+ * Sin tenant activo devuelve el manifest de Tus Turnos por defecto.
  */
 
 interface Branding {
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
   // También intentamos extraer el slug del host directamente (por si el
   // rewrite no propagó los custom headers en algún edge case)
   let slug = tenantSlug;
-  if (!slug && host.endsWith('.mensana.com.ar')) {
+  if (!slug && host.endsWith('.tusturnos.ar')) {
     slug = host.split('.')[0];
   }
 
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     branding = await fetchBrandingByDomain(customDomain);
   }
 
-  const appName = branding?.nombre ?? 'Mensana';
+  const appName = branding?.nombre ?? 'Tus Turnos';
   const shortName = appName.length > 12 ? appName.split(' ')[0] : appName;
   const themeColor = branding?.color_primary ?? '#3b82f6';
   const bgColor = branding?.color_background ?? '#f8fbff';
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
     lang: 'es',
     icons: [
       // Si la empresa tiene logo_url en Supabase Storage, se usa directamente.
-      // Si no, se usan los íconos genéricos de Mensana.
+      // Si no, se usan los íconos genéricos de Tus Turnos.
       ...(branding?.logo_url
         ? [
             {
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
           ]
         : [
             {
-              src: '/images/logoMensana.png',
+              src: '/images/logoturnos.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any maskable',

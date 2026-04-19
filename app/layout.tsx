@@ -8,7 +8,7 @@ import { ThemeProvider } from '@/src/context/ThemeContext';
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope', weight: ['400', '600', '700', '800'] });
 
 export const metadata: Metadata = {
-  title: 'Mensana',
+  title: 'Tus Turnos',
   description: 'Sistema de gestión de turnos y reservas',
 };
 
@@ -17,6 +17,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
       </head>
       <body className={`${manrope.variable} font-[family-name:var(--font-manrope)] antialiased`} suppressHydrationWarning>
         <BusinessProvider>

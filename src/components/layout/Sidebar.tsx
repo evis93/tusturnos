@@ -52,15 +52,15 @@ const CLIENTE_NAV: NavItem[] = [
   { label: 'Explorar', href: '/cliente/explorar-profesionales', icon: <Building2 size={18} /> },
 ];
 
-const MENSANA_NAV: NavItem[] = [
-  { label: 'Empresas', href: '/mensana', icon: <Building2 size={18} /> },
+const TUSTURNOS_NAV: NavItem[] = [
+  { label: 'Empresas', href: '/tusturnos', icon: <Building2 size={18} /> },
 ];
 
 function getNavByRol(rol: string | null): NavItem[] {
   if (rol === 'admin' || rol === 'superadmin') return ADMIN_NAV;
   if (rol === 'profesional') return PROFESIONAL_NAV;
   if (rol === 'cliente') return CLIENTE_NAV;
-  return MENSANA_NAV;
+  return TUSTURNOS_NAV;
 }
 
 export default function Sidebar() {
@@ -95,7 +95,7 @@ export default function Sidebar() {
             className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold text-lg"
             style={{ background: colors.primary }}
           >
-            {empresaNombre?.charAt(0)?.toUpperCase() || 'M'}
+            {empresaNombre?.charAt(0)?.toUpperCase() || 'T'}
           </div>
         )}
       </div>
@@ -103,7 +103,7 @@ export default function Sidebar() {
       {/* Nav items */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {nav.map((item) => {
-          const isActive = pathname === item.href || (item.href !== '/admin' && item.href !== '/profesional' && item.href !== '/cliente' && item.href !== '/mensana' && pathname.startsWith(item.href));
+          const isActive = pathname === item.href || (item.href !== '/admin' && item.href !== '/profesional' && item.href !== '/cliente' && item.href !== '/tusturnos' && pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}

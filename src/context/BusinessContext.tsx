@@ -14,7 +14,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '../config/supabase';
 
-const STORAGE_KEY = 'mensana_business_id';
+const STORAGE_KEY = 'tusturnos_business_id';
 const IS_DEV = process.env.NODE_ENV === 'development';
 const DEV_ENV_BUSINESS_ID = IS_DEV ? (process.env.NEXT_PUBLIC_DEV_BUSINESS_ID || null) : null;
 

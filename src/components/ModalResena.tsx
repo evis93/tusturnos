@@ -171,7 +171,7 @@ export default function ModalResena({ visible, reserva, resenaExistente, onCerra
             </button>
 
             <p className="text-center text-xs mt-4 opacity-40" style={{ color: colors.textMuted }}>
-              mensana · progreso gentil
+              Tus Turnos · progreso gentil
             </p>
           </>
         )}

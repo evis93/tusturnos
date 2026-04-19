@@ -5,9 +5,9 @@
  * Cubre las 5 reglas de routing post-login:
  *   1. Superadmin → /seleccionar-empresa
  *   2. Tiene TusTurnos (1 empresa) → ruta por rol
- *   3. TusTurnos + Mensana → TusTurnos tiene prioridad
- *   4. Solo 1 Mensana → ruta por rol de esa empresa
- *   5. Múltiples Mensana sin TusTurnos → /seleccionar-empresa
+ *   3. TusTurnos + TusTurnos Hub → TusTurnos tiene prioridad
+ *   4. Solo 1 TusTurnos → ruta por rol de esa empresa
+ *   5. Múltiples TusTurnos sin TusTurnos → /seleccionar-empresa
  *
  * También cubre las funciones puras (vía comportamiento del hook):
  *   - rutaPorRol: admin→/admin, profesional→/profesional/agenda, cliente→/cliente
@@ -69,7 +69,7 @@ function makeProfile(overrides: Record<string, any> = {}) {
     esAdmin: false,
     esProfesional: false,
     esCliente: false,
-    esMensana: false,
+    esTusTurnos: false,
     colorPrimario: null,
     colorSecundario: null,
     colorBackground: null,
@@ -87,7 +87,7 @@ function makeEmpresa(overrides: Partial<UserEmpresa> = {}): UserEmpresa {
     colorSecundario: null,
     colorBackground: null,
     rol: 'admin',
-    appType: 'mensana',
+    appType: 'tusturnos',
     ...overrides,
   };
 }
@@ -151,7 +151,7 @@ describe('usePostLoginRouter', () => {
       setActiveEmpresa: vi.fn(),
     };
     mockEmpresasState = {
-      empresas: [makeEmpresa({ rol: 'superadmin', appType: 'mensana' })],
+      empresas: [makeEmpresa({ rol: 'superadmin', appType: 'tusturnos' })],
       loading: false,
     };
 
@@ -218,19 +218,19 @@ describe('usePostLoginRouter', () => {
     expect(mockReplace).toHaveBeenCalledWith('/cliente');
   });
 
-  // ── Regla 3: TusTurnos + Mensana → TusTurnos tiene prioridad ────────────
+  // ── Regla 3:  TusTurnos tiene prioridad ────────────
 
-  it('Regla 3: TusTurnos + Mensana → navega a TusTurnos (admin)', async () => {
+  it('Regla 3: TusTurnos → navega a TusTurnos (admin)', async () => 
     const setActiveEmpresa = vi.fn();
     mockAuthState = {
-      profile: makeProfile({ rol: 'profesional', empresaId: 'mensana-1' }),
+      profile: makeProfile({ rol: 'profesional', empresaId: 'tusturnos-2' }),
       loading: false,
       setActiveEmpresa,
     };
     mockEmpresasState = {
       empresas: [
-        makeEmpresa({ empresaId: 'mensana-1', rol: 'profesional', appType: 'mensana' }),
-        makeEmpresa({ empresaId: 'tt-1', rol: 'admin', appType: 'tusturnos' }),
+        makeEmpresa({ empresaId: 'tusturnos-2', rol: 'profesional', appType: 'tusturnos' }),
+        makeEmpresa({ empresaId: 'tusturnos-2', rol: 'admin', appType: 'tusturnos' }),
       ],
       loading: false,
     };
@@ -289,17 +289,17 @@ describe('usePostLoginRouter', () => {
     expect(setActiveEmpresa).toHaveBeenCalledWith(expect.objectContaining({ empresaId: 'tt-prof' }));
   });
 
-  // ── Regla 4: Solo 1 empresa Mensana ─────────────────────────────────────
+  // ── Regla 4: Solo 1 empresa de tusturnos─────────────────────────────────────
 
-  it('Regla 4: única empresa Mensana con rol admin → /admin', async () => {
+  it('Regla 4: única empresa de tusturnos con rol admin → /admin', async () => {
     const setActiveEmpresa = vi.fn();
     mockAuthState = {
-      profile: makeProfile({ rol: 'admin', empresaId: 'mensana-1' }),
+      profile: makeProfile({ rol: 'admin', empresaId: 'tusturnos-2' }),
       loading: false,
       setActiveEmpresa,
     };
     mockEmpresasState = {
-      empresas: [makeEmpresa({ empresaId: 'mensana-1', rol: 'admin', appType: 'mensana' })],
+      empresas: [makeEmpresa({ empresaId: 'tusturnos-2', rol: 'admin', appType: 'tusturnos-2' })],
       loading: false,
     };
 
@@ -311,15 +311,15 @@ describe('usePostLoginRouter', () => {
     expect(setActiveEmpresa).not.toHaveBeenCalled();
   });
 
-  it('Regla 4: única empresa Mensana con rol profesional → /profesional/agenda', async () => {
+  it('Regla 4: única empresa de tusturnos con rol profesional → /profesional/agenda', async () => {
     const setActiveEmpresa = vi.fn();
     mockAuthState = {
-      profile: makeProfile({ rol: 'profesional', empresaId: 'mensana-1' }),
+      profile: makeProfile({ rol: 'profesional', empresaId: 'tusturnos-2' }),
       loading: false,
       setActiveEmpresa,
     };
     mockEmpresasState = {
-      empresas: [makeEmpresa({ empresaId: 'mensana-1', rol: 'profesional', appType: 'mensana' })],
+      empresas: [makeEmpresa({ empresaId: 'tusturnos-2', rol: 'profesional', appType: 'tusturnos-2' })],
       loading: false,
     };
 
@@ -330,7 +330,7 @@ describe('usePostLoginRouter', () => {
     expect(setActiveEmpresa).not.toHaveBeenCalled();
   });
 
-  it('Regla 4: única empresa Mensana con empresaId diferente → llama setActiveEmpresa', async () => {
+  it('Regla 4: única empresa de tusturnos con empresaId diferente → llama setActiveEmpresa', async () => {
     const setActiveEmpresa = vi.fn();
     mockAuthState = {
       profile: makeProfile({ rol: 'admin', empresaId: 'otro-id' }),
@@ -338,29 +338,28 @@ describe('usePostLoginRouter', () => {
       setActiveEmpresa,
     };
     mockEmpresasState = {
-      empresas: [makeEmpresa({ empresaId: 'mensana-1', rol: 'admin', appType: 'mensana' })],
+      empresas: [makeEmpresa({ empresaId: 'tusturnos-2', rol: 'admin', appType: 'tusturnos' })],
       loading: false,
     };
 
     const { usePostLoginRouter } = await import('../usePostLoginRouter');
     renderHook(() => usePostLoginRouter());
 
-    expect(setActiveEmpresa).toHaveBeenCalledWith(expect.objectContaining({ empresaId: 'mensana-1' }));
+    expect(setActiveEmpresa).toHaveBeenCalledWith(expect.objectContaining({ empresaId: 'tusturnos-2' }));
     expect(mockReplace).toHaveBeenCalledWith('/admin');
   });
 
-  // ── Regla 5: Múltiples Mensana sin TusTurnos → /seleccionar-empresa ──────
+  // ── Regla 5: Múltiples Empresas sin TusTurnos → /seleccionar-empresa ──────
 
-  it('Regla 5: múltiples Mensana sin TusTurnos → /seleccionar-empresa', async () => {
+  it('Regla 5: múltiples Empresas sin TusTurnos → /seleccionar-empresa', async () => {
     mockAuthState = {
-      profile: makeProfile({ rol: 'admin', empresaId: 'mensana-1' }),
+      profile: makeProfile({ rol: 'admin', empresaId: 'tusturnos-2' }),
       loading: false,
       setActiveEmpresa: vi.fn(),
     };
     mockEmpresasState = {
       empresas: [
-        makeEmpresa({ empresaId: 'mensana-1', rol: 'admin', appType: 'mensana' }),
-        makeEmpresa({ empresaId: 'mensana-2', rol: 'profesional', appType: 'mensana' }),
+        makeEmpresa({ empresaId: 'tusturnos-2', rol: 'profesional', appType: 'tusturnos' }),
       ],
       loading: false,
     };
@@ -396,7 +395,7 @@ describe('usePostLoginRouter', () => {
   it('retorna resolving:false cuando ambos loadings son false', async () => {
     mockAuthState = { profile: makeProfile(), loading: false, setActiveEmpresa: vi.fn() };
     mockEmpresasState = {
-      empresas: [makeEmpresa({ empresaId: 'mensana-1', rol: 'admin', appType: 'mensana' })],
+      empresas: [makeEmpresa({ empresaId: 'tusturnos-2', rol: 'admin', appType: 'tusturnos' })],
       loading: false,
     };
 

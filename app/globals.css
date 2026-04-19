@@ -15,6 +15,37 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-manrope);
+
+  /* TusTurnos design system */
+  --color-primary: #005f9d;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #0679c4;
+  --color-primary-fixed-dim: #9ccaff;
+  --color-surface: #f7f9fb;
+  --color-surface-bright: #f7f9fb;
+  --color-surface-dim: #d8dadc;
+  --color-surface-container: #eceef0;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e6e8ea;
+  --color-on-surface: #191c1e;
+  --color-on-surface-variant: #3f4850;
+  --color-outline: #6f7881;
+  --color-outline-variant: #bec8d2;
+  --color-secondary: #4a6077;
+  --color-tertiary: #00628a;
+  --color-tertiary-container: #007dad;
+  --color-on-tertiary-container: #fcfcff;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+}
+
+.signature-gradient {
+  background: linear-gradient(135deg, #005f9d 0%, #0679c4 100%);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
 body {

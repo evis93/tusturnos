@@ -17,12 +17,12 @@ export async function GET(request: NextRequest) {
   const tenantSlug =
     request.headers.get('x-tenant-slug') ??
     request.headers.get('x-custom-domain') ??
-    'mensana';
+    'tusturnos';
 
   // En Vercel usa el SHA del commit para invalidar el cache automáticamente en cada deploy.
   // Localmente cae a 'v1'.
   const CACHE_VERSION = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'v1';
-  const CACHE_NAME = `mensana-${tenantSlug}-${CACHE_VERSION}`;
+  const CACHE_NAME = `tusturnos-${tenantSlug}-${CACHE_VERSION}`;
 
   const swScript = /* javascript */ `
 'use strict';
@@ -52,7 +52,7 @@ self.addEventListener('activate', (event) => {
         keys
           .filter(
             (key) =>
-              key.startsWith('mensana-' + TENANT_SLUG + '-') &&
+              key.startsWith('tusturnos-' + TENANT_SLUG + '-') &&
               key !== CACHE_NAME,
           )
           .map((key) => caches.delete(key)),

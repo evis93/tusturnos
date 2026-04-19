@@ -9,7 +9,7 @@ export class ProfesionalController {
     if (permError) return permError;
 
     try {
-      // Mensana ve todo; los demás filtran por empresa
+      // Tus Turnos ve todo; los demás filtran por empresa
       let empresaFilter = null;
       if (profile.rol !== 'superadmin') {
         const empError = requireEmpresa(profile);

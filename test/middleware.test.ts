@@ -62,7 +62,7 @@ import { middleware } from '../middleware';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const DOMAIN = 'mensana.com.ar'; // matches the default MENSANA_DOMAIN
+const DOMAIN = 'tusturnos.ar'; // matches the default TUSTURNOS_DOMAIN
 
 function makeRequest(
   pathname: string,
@@ -83,7 +83,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete process.env.MENSANA_DOMAIN;
+  delete process.env.TUSTURNOS_DOMAIN;
 });
 
 // ─── shouldBypass ─────────────────────────────────────────────────────────────
@@ -100,8 +100,8 @@ describe('shouldBypass — paths that skip tenant routing', () => {
     '/profesional/agenda',
     '/cliente',
     '/cliente/perfil',
-    '/mensana',
-    '/mensana/superadmin',
+    '/tusturnos',
+    '/tusturnos/superadmin',
     '/favicon.ico',
     '/robots.txt',
     '/images/logo.png',
@@ -131,29 +131,29 @@ describe('shouldBypass — paths that skip tenant routing', () => {
 
 // ─── Subdomain routing ────────────────────────────────────────────────────────
 
-describe('Subdomain routing — {slug}.mensana.com.ar', () => {
-  it('rewrites / to /mensana/{slug}/auth/login', () => {
+describe('Subdomain routing — {slug}.tusturnos.ar', () => {
+  it('rewrites / to /tusturnos/{slug}/auth/login', () => {
     middleware(makeRequest('/', `clinica-sol.${DOMAIN}`));
     expect(lastCall.method).toBe('rewrite');
-    expect(lastCall.url).toBe('/mensana/clinica-sol/auth/login');
+    expect(lastCall.url).toBe('/tusturnos/clinica-sol/auth/login');
   });
 
-  it('rewrites /catalogo to /mensana/{slug}/catalogo', () => {
+  it('rewrites /catalogo to /tusturnos/{slug}/catalogo', () => {
     middleware(makeRequest('/catalogo', `clinica-sol.${DOMAIN}`));
     expect(lastCall.method).toBe('rewrite');
-    expect(lastCall.url).toBe('/mensana/clinica-sol/catalogo');
+    expect(lastCall.url).toBe('/tusturnos/clinica-sol/catalogo');
   });
 
-  it('rewrites /auth/login to /mensana/{slug}/auth/login', () => {
+  it('rewrites /auth/login to /tusturnos/{slug}/auth/login', () => {
     middleware(makeRequest('/auth/login', `mi-empresa.${DOMAIN}`));
     expect(lastCall.method).toBe('rewrite');
-    expect(lastCall.url).toBe('/mensana/mi-empresa/auth/login');
+    expect(lastCall.url).toBe('/tusturnos/mi-empresa/auth/login');
   });
 
-  it('rewrites nested path /auth/callback to /mensana/{slug}/auth/callback', () => {
+  it('rewrites nested path /auth/callback to /tusturnos/{slug}/auth/callback', () => {
     middleware(makeRequest('/auth/callback', `mi-empresa.${DOMAIN}`));
     expect(lastCall.method).toBe('rewrite');
-    expect(lastCall.url).toBe('/mensana/mi-empresa/auth/callback');
+    expect(lastCall.url).toBe('/tusturnos/mi-empresa/auth/callback');
   });
 
   it('sets x-tenant-slug header to the slug', () => {
@@ -178,20 +178,20 @@ describe('Subdomain routing — {slug}.mensana.com.ar', () => {
     });
     middleware(req);
     expect(lastCall.method).toBe('rewrite');
-    expect(lastCall.url).toBe('/mensana/peluqueria-style/auth/login');
+    expect(lastCall.url).toBe('/tusturnos/peluqueria-style/auth/login');
     expect(lastCall.headers?.['x-tenant-slug']).toBe('peluqueria-style');
   });
 
   it('strips port from host before matching (dev environment)', () => {
-    // Simulate empresa.mensana.local:3000 with MENSANA_DOMAIN override
-    process.env.MENSANA_DOMAIN = 'mensana.local';
-    // Re-import is not needed — MENSANA_DOMAIN is read at module load.
+    // Simulate empresa.tusturnos.local:3000 with TUSTURNOS_DOMAIN override
+    process.env.TUSTURNOS_DOMAIN = 'tusturnos.local';
+    // Re-import is not needed — TUSTURNOS_DOMAIN is read at module load.
     // Instead we use x-original-host with port to test the port-stripping logic.
     const req = makeRequest('/', `${DOMAIN}:3000`, {
       'x-original-host': `studio-fit.${DOMAIN}:3000`,
     });
     middleware(req);
-    // port stripped → studio-fit.mensana.com.ar → subdomain match
+    // port stripped → studio-fit.tusturnos.local → subdomain match
     expect(lastCall.method).toBe('rewrite');
     expect(lastCall.headers?.['x-tenant-slug']).toBe('studio-fit');
   });
@@ -199,23 +199,23 @@ describe('Subdomain routing — {slug}.mensana.com.ar', () => {
 
 // ─── Path-based routing (/e/{slug}) ──────────────────────────────────────────
 
-describe('Path-based routing — mensana.com.ar/e/{slug}', () => {
-  it('rewrites /e/{slug} to /mensana/{slug}/auth/login', () => {
+describe('Path-based routing — tusturnos.ar/e/{slug}', () => {
+  it('rewrites /e/{slug} to /tusturnos/{slug}/auth/login', () => {
     middleware(makeRequest('/e/mi-spa', DOMAIN));
     expect(lastCall.method).toBe('rewrite');
-    expect(lastCall.url).toBe('/mensana/mi-spa/auth/login');
+    expect(lastCall.url).toBe('/tusturnos/mi-spa/auth/login');
   });
 
-  it('rewrites /e/{slug}/catalogo to /mensana/{slug}/catalogo', () => {
+  it('rewrites /e/{slug}/catalogo to /tusturnos/{slug}/catalogo', () => {
     middleware(makeRequest('/e/mi-spa/catalogo', DOMAIN));
     expect(lastCall.method).toBe('rewrite');
-    expect(lastCall.url).toBe('/mensana/mi-spa/catalogo');
+    expect(lastCall.url).toBe('/tusturnos/mi-spa/catalogo');
   });
 
-  it('rewrites /e/{slug}/auth/login to /mensana/{slug}/auth/login', () => {
+  it('rewrites /e/{slug}/auth/login to /tusturnos/{slug}/auth/login', () => {
     middleware(makeRequest('/e/mi-spa/auth/login', DOMAIN));
     expect(lastCall.method).toBe('rewrite');
-    expect(lastCall.url).toBe('/mensana/mi-spa/auth/login');
+    expect(lastCall.url).toBe('/tusturnos/mi-spa/auth/login');
   });
 
   it('sets x-tenant-slug header to the slug', () => {
@@ -228,10 +228,10 @@ describe('Path-based routing — mensana.com.ar/e/{slug}', () => {
     expect(lastCall.headers?.['x-tenant-source']).toBe('path');
   });
 
-  it('works from www.mensana.com.ar/e/{slug} too', () => {
+  it('works from www.tusturnos.ar/e/{slug} too', () => {
     middleware(makeRequest('/e/centro-yoga', `www.${DOMAIN}`));
     expect(lastCall.method).toBe('rewrite');
-    expect(lastCall.url).toBe('/mensana/centro-yoga/auth/login');
+    expect(lastCall.url).toBe('/tusturnos/centro-yoga/auth/login');
     expect(lastCall.headers?.['x-tenant-source']).toBe('path');
   });
 
@@ -268,7 +268,7 @@ describe('Custom domain routing — PRO plan', () => {
   });
 
   it('does NOT treat .vercel.app preview URLs as custom domain', () => {
-    middleware(makeRequest('/', 'mensanaweb-git-dev-team.vercel.app'));
+    middleware(makeRequest('/', 'tusturnos-git-dev-team.vercel.app'));
     // .vercel.app → falls through to last NextResponse.next() (no headers set)
     expect(lastCall.method).toBe('next');
     expect(lastCall.headers?.['x-custom-domain']).toBeUndefined();
@@ -300,18 +300,18 @@ describe('Custom domain routing — PRO plan', () => {
 describe('Edge cases', () => {
   it('slug with hyphens is preserved exactly', () => {
     middleware(makeRequest('/', `mi-super-spa.${DOMAIN}`));
-    expect(lastCall.url).toBe('/mensana/mi-super-spa/auth/login');
+    expect(lastCall.url).toBe('/tusturnos/mi-super-spa/auth/login');
   });
 
   it('slug with numbers is preserved exactly', () => {
     middleware(makeRequest('/', `empresa123.${DOMAIN}`));
-    expect(lastCall.url).toBe('/mensana/empresa123/auth/login');
+    expect(lastCall.url).toBe('/tusturnos/empresa123/auth/login');
   });
 
   it('deeply nested path is fully preserved after rewrite', () => {
     middleware(makeRequest('/auth/callback?code=abc', `empresa123.${DOMAIN}`));
     // URL stored by our mock includes search string
-    expect(lastCall.url).toMatch(/^\/mensana\/empresa123\/auth\/callback/);
+    expect(lastCall.url).toMatch(/^/tusturnos/empresa123/auth/callback/);
   });
 
   it('x-original-host takes priority over host header', () => {
@@ -322,7 +322,7 @@ describe('Edge cases', () => {
     expect(lastCall.headers?.['x-tenant-slug']).toBe('priority-slug');
   });
 
-  it('returns NextResponse.next() on bare mensana.com.ar root', () => {
+  it('returns NextResponse.next() on bare tusturnos.ar root', () => {
     middleware(makeRequest('/', DOMAIN));
     expect(lastCall.method).toBe('next');
   });

@@ -5,7 +5,7 @@ import dns from 'dns/promises';
  * POST /api/admin/domain/verify
  * Body: { domain: string }
  *
- * Verifica que el CNAME del dominio apunte al target de Mensana/Vercel.
+ * Verifica que el CNAME del dominio apunte al target de TusTurnos/Vercel.
  * Responde: { valid: boolean, cname?: string, error?: string }
  */
 

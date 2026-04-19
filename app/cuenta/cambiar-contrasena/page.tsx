@@ -104,7 +104,7 @@ export default function CambiarContrasenaPage() {
             <img src={logoUrl} alt={empresaNombre || 'logo'} className="h-10 w-auto object-contain" />
           ) : (
             <h1 className="text-2xl font-bold tracking-tight lowercase" style={{ color: colors.primary }}>
-              {empresaNombre || 'mensana'}
+              {empresaNombre || 'Tus Turnos'}
             </h1>
           )}
         </div>

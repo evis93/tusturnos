@@ -139,7 +139,7 @@ export default function DominioPage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-1">dominio propio</h1>
       <p className="text-sm text-gray-500 mb-8">
         Configurá tu dominio para que tus clientes accedan desde{' '}
-        <strong>turnos.tuempresa.com</strong> — Mensana queda completamente invisible.
+        <strong>turnos.tuempresa.com</strong> — Tus Turnos queda completamente invisible.
       </p>
 
       {/* ── Plan no permite dominio propio ──────────────────────────── */}
@@ -148,7 +148,7 @@ export default function DominioPage() {
           <p className="font-bold text-amber-800 mb-2">plan actual: {empresa?.plan}</p>
           <p className="text-sm text-amber-700">
             El dominio propio está disponible en los planes <strong>PRO</strong> y{' '}
-            <strong>PRO-WEB</strong>. Contactate con Mensana para actualizar tu plan.
+            <strong>PRO-WEB</strong>. Contactate con Tus Turnos para actualizar tu plan.
           </p>
         </div>
       )}
