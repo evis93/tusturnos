@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
         cliente_email:      clienteMap[r.cliente_id]?.email || '',
         cliente_telefono:   clienteMap[r.cliente_id]?.telefono || '',
         profesional_nombre: profesionalMap[r.profesional_id]?.nombre_completo || '',
-        servicio_nombre:    servicioMap[r.servicio_id]?.nombre || '',
+        servicio_nombre:    servicioMap[r.servicio_id]?.nombre || r.servicio_nombre || '',
         servicio_precio:    servicioMap[r.servicio_id]?.precio ?? null,
       }
     })

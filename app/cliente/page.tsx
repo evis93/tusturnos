@@ -121,7 +121,7 @@ export default function ClientePage() {
             <>
               <div className="bg-white rounded-2xl p-5 shadow-sm border" style={{ borderColor: colors.borderLight }}>
                 {/* Badge estado */}
-                {proximaSesion.estado === 'PENDIENTE' ? (
+                {proximaSesion.estado?.toLowerCase() === 'pendiente' ? (
                   <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 mb-3">
                     ⏰ pendiente de confirmación
                   </span>
@@ -146,7 +146,7 @@ export default function ClientePage() {
                   <button className="flex-1 py-2.5 rounded-xl text-xs font-bold border" style={{ borderColor: colors.border, color: colors.textSecondary }}>
                     cancelar
                   </button>
-                  {proximaSesion.estado === 'CONFIRMADA' && (
+                  {proximaSesion.estado?.toLowerCase() === 'confirmada' && (
                     <button className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ backgroundColor: colors.primaryFaded, color: colors.primary }}>
                       cambiar horario
                     </button>
@@ -154,7 +154,7 @@ export default function ClientePage() {
                 </div>
               </div>
 
-              {proximaSesion.estado === 'PENDIENTE' && (
+              {proximaSesion.estado?.toLowerCase() === 'pendiente' && (
                 <div className="mt-3 flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
                   <span className="text-green-600">💬</span>
                   <p className="text-xs text-green-800 lowercase">
@@ -193,25 +193,27 @@ export default function ClientePage() {
                     <p className="text-sm font-bold lowercase mb-0.5" style={{ color: colors.text }}>{h.servicio || 'sesión'}</p>
                     {h.profesional_nombre && <p className="text-xs lowercase mb-2" style={{ color: colors.textSecondary }}>{h.profesional_nombre}</p>}
 
-                    {resenasMap[h.id] ? (
-                      <div className="flex gap-2">
+                    {h.estado?.toLowerCase() === 'completada' && (
+                      resenasMap[h.id] ? (
+                        <div className="flex gap-2">
+                          <button onClick={() => setReservaParaResena(h)}
+                            className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
+                            style={{ borderColor: colors.primary, color: colors.primary }}>
+                            ✏️ editar
+                          </button>
+                          <button onClick={() => handleBorrarResena(h.id)}
+                            className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
+                            style={{ borderColor: colors.error, color: colors.error }}>
+                            🗑 borrar
+                          </button>
+                        </div>
+                      ) : (
                         <button onClick={() => setReservaParaResena(h)}
                           className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
                           style={{ borderColor: colors.primary, color: colors.primary }}>
-                          ✏️ editar
+                          calificar ★
                         </button>
-                        <button onClick={() => handleBorrarResena(h.id)}
-                          className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
-                          style={{ borderColor: colors.error, color: colors.error }}>
-                          🗑 borrar
-                        </button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setReservaParaResena(h)}
-                        className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
-                        style={{ borderColor: colors.primary, color: colors.primary }}>
-                        calificar ★
-                      </button>
+                      )
                     )}
                   </div>
                 </div>
