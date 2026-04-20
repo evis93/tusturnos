@@ -1,53 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useTheme } from '@/src/context/ThemeContext';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/src/context/AuthContext';
 import { supabase } from '@/src/config/supabase';
-import { MapPin, Search, Loader2 } from 'lucide-react';
+import {
+  Check, ChevronRight, PlusCircle, Settings, LogOut,
+  Home, Briefcase, User, Search, Loader2,
+} from 'lucide-react';
 
 export default function ExplorarProfesionalesPage() {
-  const { colors } = useTheme();
+  const router = useRouter();
+  const { profile, logout } = useAuth();
 
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
-  const [locationError, setLocationError] = useState('');
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          const { latitude, longitude } = pos.coords;
-          setUserLocation({ lat: latitude, lng: longitude });
-          cargarCercanas(latitude, longitude);
-        },
-        () => {
-          setLocationError('No se pudo obtener tu ubicación. Mostrando todos los centros.');
-          cargarTodas();
-        }
-      );
-    } else {
-      setLocationError('Tu navegador no soporta geolocalización.');
-      cargarTodas();
-    }
-  }, []);
+  const nombreCorto = profile?.nombre_completo?.split(' ')[0]?.toLowerCase() || '';
 
-  const cargarCercanas = async (lat: number, lng: number) => {
-    setLoading(true);
-    const { data, error } = await supabase.rpc('buscar_empresas_cercanas', {
-      p_lat: lat, p_lng: lng, p_radius_meters: 5000,
-    });
-    if (!error && data) {
-      setEmpresas(data);
-    } else {
-      cargarTodas();
-      return;
-    }
-    setLoading(false);
-  };
-
-  const cargarTodas = async () => {
+  const cargar = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from('empresas')
@@ -56,83 +28,196 @@ export default function ExplorarProfesionalesPage() {
       .order('nombre');
     if (data) setEmpresas(data);
     setLoading(false);
-  };
+  }, []);
 
-  const empresasFiltradas = empresas.filter(e =>
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const filtradas = empresas.filter(e =>
     e.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
     e.descripcion?.toLowerCase().includes(busqueda.toLowerCase())
   );
 
+  const handleSeleccionar = (empresa: any) => {
+    router.push(`/cliente/reservar?empresaId=${empresa.id}`);
+  };
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-1" style={{ color: colors.text }}>Explorar Profesionales</h1>
+    <div
+      className="min-h-screen flex flex-col items-center px-6 py-12 pb-28"
+      style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)' }}
+    >
+      {/* Header */}
+      <header className="w-full max-w-md mb-10 text-center">
+        <h1 className="text-2xl font-bold tracking-tight lowercase mb-2" style={{ color: '#43b9e5' }}>
+          {profile?.empresaNombre?.toLowerCase() || 'mensana'}
+        </h1>
+        <div className="h-1 w-8 rounded-full mx-auto" style={{ background: 'rgba(67,185,229,0.2)' }} />
+      </header>
 
-      {locationError && (
-        <p className="text-sm mb-3" style={{ color: colors.warning }}>{locationError}</p>
-      )}
-
-      {/* Búsqueda */}
-      <div className="relative mb-6">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          value={busqueda}
-          onChange={e => setBusqueda(e.target.value)}
-          placeholder="Buscar centros o profesionales..."
-          className="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          style={{ borderColor: colors.border }}
-        />
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 size={28} className="animate-spin" style={{ color: colors.primary }} />
+      <main className="w-full max-w-md space-y-7">
+        {/* Saludo */}
+        <div className="text-center space-y-1.5">
+          <h2 className="text-2xl font-semibold leading-tight tracking-tight lowercase" style={{ color: '#121616' }}>
+            {nombreCorto ? `hola ${nombreCorto}, ` : ''}¿a qué centro deseas ir?
+          </h2>
+          <p className="text-sm font-normal lowercase tracking-wide" style={{ color: '#6a8180' }}>
+            seleccioná el espacio donde querés reservar tu turno
+          </p>
         </div>
-      ) : empresasFiltradas.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-4xl mb-3">🔍</p>
-          <p style={{ color: colors.textSecondary }}>No se encontraron centros</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {empresasFiltradas.map(e => (
-            <div
-              key={e.id}
-              className="bg-white rounded-2xl border overflow-hidden hover:shadow-md transition cursor-pointer"
-              style={{ borderColor: colors.border }}
-            >
-              {/* Banner con color de empresa */}
-              <div
-                className="h-24 flex items-center justify-center"
-                style={{ background: `linear-gradient(135deg, ${e.color_primary || colors.primary}, ${colors.secondary})` }}
-              >
-                {e.logo_url ? (
-                  <img src={e.logo_url} alt={e.nombre} className="h-12 w-12 rounded-full object-cover border-2 border-white" />
-                ) : (
-                  <div className="h-12 w-12 rounded-full bg-white/30 flex items-center justify-center text-white text-xl font-bold">
-                    {e.nombre?.charAt(0)}
-                  </div>
-                )}
-              </div>
 
-              <div className="p-4">
-                <p className="font-semibold" style={{ color: colors.text }}>{e.nombre}</p>
-                {e.descripcion && (
-                  <p className="text-sm mt-1 line-clamp-2" style={{ color: colors.textSecondary }}>{e.descripcion}</p>
-                )}
-                {(e.distancia_metros || e.direccion) && (
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <MapPin size={12} style={{ color: colors.primary }} />
-                    <span className="text-xs" style={{ color: colors.textSecondary }}>
-                      {e.distancia_metros ? `${(e.distancia_metros / 1000).toFixed(1)} km` : e.direccion}
-                    </span>
-                  </div>
-                )}
-              </div>
+        {/* Buscador */}
+        <div className="relative">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#6a8180' }} />
+          <input
+            type="text"
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="buscar centro..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-white border lowercase placeholder:lowercase focus:outline-none focus:ring-2"
+            style={{ borderColor: '#e2e8f0', color: '#121616', fontFamily: 'inherit' }}
+          />
+        </div>
+
+        {/* Lista */}
+        <div className="space-y-3">
+          {loading ? (
+            <div className="flex justify-center py-14">
+              <Loader2 size={26} className="animate-spin" style={{ color: '#43b9e5' }} />
             </div>
-          ))}
+          ) : filtradas.length === 0 ? (
+            <div className="text-center py-14">
+              <p className="text-4xl mb-3">🔍</p>
+              <p className="text-sm lowercase" style={{ color: '#6a8180' }}>no se encontraron centros</p>
+            </div>
+          ) : (
+            filtradas.map((empresa, idx) => {
+              const esActual = empresa.id === profile?.empresaId;
+              return (
+                <button
+                  key={empresa.id}
+                  onClick={() => handleSeleccionar(empresa)}
+                  className="w-full group relative bg-white p-5 rounded-xl flex items-center gap-5 border border-transparent text-left transition-all duration-200 hover:border-[rgba(67,185,229,0.3)]"
+                  style={{ boxShadow: '0 10px 25px -5px rgba(67,185,229,0.08), 0 8px 10px -6px rgba(67,185,229,0.04)' }}
+                >
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    <div
+                      className="w-16 h-16 rounded-full overflow-hidden border flex items-center justify-center bg-slate-50"
+                      style={{ borderColor: '#e2e8f0' }}
+                    >
+                      {empresa.logo_url ? (
+                        <img src={empresa.logo_url} alt={empresa.nombre} className="w-full h-full object-cover" />
+                      ) : (
+                        <span
+                          className="text-2xl font-bold lowercase"
+                          style={{ color: empresa.color_primary || '#43b9e5' }}
+                        >
+                          {empresa.nombre?.charAt(0)}
+                        </span>
+                      )}
+                    </div>
+                    {(esActual || idx === 0) && (
+                      <div
+                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center"
+                        style={{ backgroundColor: '#43b9e5' }}
+                      >
+                        <Check size={10} color="white" strokeWidth={3} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 overflow-hidden">
+                    <h3 className="font-semibold text-lg leading-tight lowercase truncate" style={{ color: '#121616' }}>
+                      {empresa.nombre?.toLowerCase()}
+                    </h3>
+                    {empresa.descripcion && (
+                      <p className="text-sm lowercase mt-0.5 truncate" style={{ color: '#6a8180' }}>
+                        {empresa.descripcion.toLowerCase()}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Chevron */}
+                  <ChevronRight
+                    size={20}
+                    className="shrink-0 transition-colors duration-200"
+                    style={{ color: '#6a8180' }}
+                  />
+                </button>
+              );
+            })
+          )}
+
+          {/* Vincular otro centro */}
+          {!loading && (
+            <button
+              className="w-full p-5 rounded-xl border-2 border-dashed flex items-center justify-center gap-2.5 transition-all duration-200 hover:border-[rgba(67,185,229,0.4)]"
+              style={{ borderColor: '#E4E7ED' }}
+            >
+              <PlusCircle size={18} style={{ color: 'rgba(67,185,229,0.7)' }} />
+              <span className="font-medium text-sm lowercase" style={{ color: '#6a8180' }}>vincular otro centro</span>
+            </button>
+          )}
         </div>
-      )}
+
+        {/* Footer */}
+        <footer className="pt-8 text-center space-y-6">
+          <button
+            onClick={() => router.push('/cliente')}
+            className="inline-block text-sm font-semibold tracking-wide lowercase hover:underline underline-offset-4 transition-all"
+            style={{ color: '#43b9e5', textDecorationColor: 'rgba(67,185,229,0.3)' }}
+          >
+            volver al inicio
+          </button>
+
+          <div className="pt-4 flex items-center justify-center gap-8">
+            <button className="flex flex-col items-center gap-1 group">
+              <div
+                className="w-10 h-10 rounded-full bg-white flex items-center justify-center transition-colors"
+                style={{ boxShadow: '0 10px 25px -5px rgba(67,185,229,0.08)' }}
+              >
+                <Settings size={18} style={{ color: '#6a8180' }} />
+              </div>
+              <span className="text-[10px] font-medium uppercase tracking-widest" style={{ color: '#6a8180' }}>ajustes</span>
+            </button>
+
+            <button
+              onClick={async () => { await logout(); router.push('/auth/login'); }}
+              className="flex flex-col items-center gap-1 group"
+            >
+              <div
+                className="w-10 h-10 rounded-full bg-white flex items-center justify-center transition-colors"
+                style={{ boxShadow: '0 10px 25px -5px rgba(67,185,229,0.08)' }}
+              >
+                <LogOut size={18} style={{ color: '#6a8180' }} />
+              </div>
+              <span className="text-[10px] font-medium uppercase tracking-widest" style={{ color: '#6a8180' }}>salir</span>
+            </button>
+          </div>
+        </footer>
+      </main>
+
+      {/* Bottom nav flotante */}
+      <nav
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full flex items-center gap-8 md:hidden"
+        style={{
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.5)',
+          boxShadow: '0 10px 25px -5px rgba(67,185,229,0.1)',
+        }}
+      >
+        <button onClick={() => router.push('/cliente')}>
+          <Home size={22} style={{ color: '#6a8180' }} />
+        </button>
+        <button>
+          <Briefcase size={22} style={{ color: '#43b9e5' }} />
+        </button>
+        <button onClick={() => router.push('/cliente/perfil')}>
+          <User size={22} style={{ color: '#6a8180' }} />
+        </button>
+      </nav>
     </div>
   );
 }
