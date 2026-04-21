@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useSucursal } from '@/src/context/SucursalContext';
@@ -25,6 +25,8 @@ function fechaISO(date: Date) {
 
 export default function ReservarPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const cambiarId = searchParams.get('cambiarId');
   const { profile } = useAuth();
   const { colors } = useTheme();
   const { sucursalActiva } = useSucursal();
@@ -56,24 +58,32 @@ export default function ReservarPage() {
 
   useEffect(() => {
     async function cargarDatos() {
-      if (!profile?.empresaId) return;
+      if (!profile?.empresaId || !profile?.usuarioId) return;
       setCargandoDatos(true);
-      const [resProf, resSvc] = await Promise.all([
+      const [resProf, resSvc, resReservas] = await Promise.all([
         (ReservaClienteController as any).obtenerProfesionalesEmpresa(profile.empresaId),
         (ReservaClienteController as any).obtenerServiciosEmpresa(profile.empresaId),
+        fetch(`/api/reservas?clienteId=${profile.usuarioId}&empresaId=${profile.empresaId}`).then(r => r.json()).catch(() => ({ success: false })),
       ]);
       if (resProf.success && resProf.data.length > 0) {
         setProfesionales(resProf.data);
         setProfSeleccionado(resProf.data[0]);
       }
       if (resSvc.success && resSvc.data.length > 0) {
-        setServicios(resSvc.data);
-        setServicioSeleccionado(resSvc.data[0]);
+        const serviciosActivosIds = new Set(
+          (resReservas.success ? resReservas.data : [])
+            .filter((r: any) => ['pendiente', 'confirmada'].includes(r.estado?.toLowerCase()))
+            .map((r: any) => r.servicio_id)
+            .filter(Boolean)
+        );
+        const disponibles = resSvc.data.filter((s: any) => !serviciosActivosIds.has(s.id));
+        setServicios(disponibles);
+        if (disponibles.length > 0) setServicioSeleccionado(disponibles[0]);
       }
       setCargandoDatos(false);
     }
     cargarDatos();
-  }, [profile?.empresaId]);
+  }, [profile?.empresaId, profile?.usuarioId]);
 
   useEffect(() => {
     const profId = profSeleccionado?.id;
@@ -91,7 +101,7 @@ export default function ReservarPage() {
 
       const [resHorarios, resOcupados] = await Promise.all([
         (ReservaClienteController as any).obtenerHorariosDelDia(profId, diaSemana, profile?.empresaId),
-        (ReservaClienteController as any).obtenerSlotsOcupados(profId, fechaStr),
+        (ReservaClienteController as any).obtenerSlotsOcupados(profId, fechaStr, sucursalActiva?.id ?? null),
       ]);
 
       if (cancelado) return;
@@ -121,10 +131,14 @@ export default function ReservarPage() {
       sucursalId: sucursalActiva?.id || null,
       fecha: fechaISO(diaSeleccionado),
       horaInicio: slotSeleccionado,
+      reservaOrigenId: cambiarId || null,
     });
     setEnviando(false);
     if (res.success) {
-      window.alert('¡Solicitud enviada! Tu turno fue solicitado. El centro lo confirmará a la brevedad.');
+      const msg = cambiarId
+        ? '¡Cambio solicitado! Cuando el centro confirme el nuevo horario, el turno anterior quedará cancelado automáticamente.'
+        : '¡Solicitud enviada! Tu turno fue solicitado. El centro lo confirmará a la brevedad.';
+      window.alert(msg);
       router.replace('/cliente');
     } else {
       window.alert('Error: ' + (res.error || 'No se pudo enviar la solicitud.'));
@@ -147,8 +161,17 @@ export default function ReservarPage() {
       {/* Header */}
       <header className="flex items-center gap-3 px-4 py-4 text-white" style={{ backgroundColor: color }}>
         <button onClick={() => router.replace('/cliente')} className="text-white text-xl">‹</button>
-        <h1 className="text-base font-bold">{profile?.empresaNombre || 'Reservar turno'}</h1>
+        <h1 className="text-base font-bold">{cambiarId ? 'Elegí el nuevo horario' : (profile?.empresaNombre || 'Reservar turno')}</h1>
       </header>
+
+      {cambiarId && (
+        <div className="mx-4 mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <span>🔄</span>
+          <p className="text-xs text-amber-800">
+            estás solicitando un cambio de horario. cuando el centro confirme el nuevo turno, el anterior quedará cancelado automáticamente.
+          </p>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto pb-24">
         {/* Profesionales */}
@@ -173,7 +196,7 @@ export default function ReservarPage() {
         </div>
 
         {/* Servicios */}
-        {servicios.length > 0 && (
+        {servicios.length > 0 ? (
           <div className="px-5 py-4 border-b border-blue-50">
             <p className="text-base font-bold text-gray-800 mb-3">Seleccioná un servicio</p>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -191,6 +214,12 @@ export default function ReservarPage() {
                 );
               })}
             </div>
+          </div>
+        ) : (
+          <div className="px-5 py-6 flex flex-col items-center gap-2 text-center">
+            <span className="text-3xl opacity-30">✅</span>
+            <p className="text-sm font-bold text-gray-600">ya tenés todos los servicios reservados</p>
+            <p className="text-xs text-gray-400">cuando se complete o cancele una reserva, podrás volver a reservar ese servicio.</p>
           </div>
         )}
 
@@ -313,7 +342,7 @@ export default function ReservarPage() {
           disabled={!puedeEnviar}
           className="w-full py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40"
           style={{ backgroundColor: color }}>
-          {enviando ? <span className="animate-spin">⏳</span> : '📅'} Solicitar Reserva
+          {enviando ? <span className="animate-spin">⏳</span> : (cambiarId ? '🔄' : '📅')} {cambiarId ? 'Solicitar Cambio de Horario' : 'Solicitar Reserva'}
         </button>
       </div>
     </div>

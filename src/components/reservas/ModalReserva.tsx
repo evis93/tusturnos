@@ -29,9 +29,11 @@ interface Props {
   clientePreset?: { id: string | null; nombre: string; email: string; telefono?: string };
   /** Profesional pre-seleccionado (uso desde la vista de cliente) */
   profesionalIdInicial?: string;
+  /** Reserva original al cambiar de horario: pre-rellena cliente/profesional/servicio y vincula la nueva */
+  reservaOrigen?: any | null;
 }
 
-export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCreado, fecha, horaInicial, reservaEditar, profesionales, profile, clientePreset, profesionalIdInicial }: Props) {
+export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCreado, fecha, horaInicial, reservaEditar, profesionales, profile, clientePreset, profesionalIdInicial, reservaOrigen }: Props) {
   const { colors } = useTheme();
 
   const [consultanteSearch, setConsultanteSearch] = useState('');
@@ -51,6 +53,7 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
     hora_inicio: horaInicial || '',
     profesional_id: profile?.profesionalId || '',
     tipo_sesion_id: null as string | null,
+    tipo_sesion_nombre: '' as string,
     precio_total: '',
     monto_seña: '',
     descuento_pct: '',
@@ -86,13 +89,32 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
           hora_inicio: reservaEditar.hora_inicio?.substring(0, 5) || '',
           profesional_id: reservaEditar.profesional_id || profile?.profesionalId || '',
           tipo_sesion_id: reservaEditar.servicio_id || null,
+          tipo_sesion_nombre: reservaEditar.servicio_nombre || reservaEditar.servicio || '',
           precio_total: reservaEditar.precio_total?.toString() || '',
           monto_seña: reservaEditar.monto_seña?.toString() || '',
           descuento_pct: '',
           descuento_fijo: '',
         });
         setConsultanteSearch(reservaEditar.consultante_nombre || '');
-        setPrecioBase(''); // no auto-computar al editar
+        setPrecioBase('');
+      } else if (reservaOrigen) {
+        // Modo cambio de horario: pre-rellena datos del cliente/profesional/servicio, hora en blanco
+        setForm({
+          consultante_id: reservaOrigen.consultante_id || reservaOrigen.cliente_id,
+          consultante_nombre: reservaOrigen.consultante_nombre || '',
+          consultante_email: reservaOrigen.consultante_email || '',
+          consultante_telefono: reservaOrigen.consultante_telefono || '',
+          hora_inicio: '',
+          profesional_id: reservaOrigen.profesional_id || profile?.profesionalId || '',
+          tipo_sesion_id: reservaOrigen.servicio_id || null,
+          tipo_sesion_nombre: reservaOrigen.servicio_nombre || reservaOrigen.servicio || '',
+          precio_total: reservaOrigen.precio_total?.toString() || '',
+          monto_seña: '',
+          descuento_pct: '',
+          descuento_fijo: '',
+        });
+        setConsultanteSearch(reservaOrigen.consultante_nombre || '');
+        setPrecioBase('');
       } else {
         setForm({
           consultante_id: clientePreset?.id ?? null,
@@ -175,9 +197,11 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
       fecha,
       hora_inicio: form.hora_inicio,
       servicio_id: form.tipo_sesion_id,
+      servicio_nombre: form.tipo_sesion_nombre || null,
       precio_total: form.precio_total ? parseFloat(form.precio_total) : null,
       monto_seña: form.monto_seña ? parseFloat(form.monto_seña) : null,
       estado: estadoNuevo,
+      reserva_origen_id: reservaOrigen?.id || null,
     };
 
     const result = reservaEditar
@@ -222,7 +246,7 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
       <div className="bg-white rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold" style={{ color: colors.text }}>
-            {reservaEditar ? 'Editar Reserva' : 'Nueva Reserva'}
+            {reservaEditar ? 'Editar Reserva' : reservaOrigen ? 'Cambiar Horario' : 'Nueva Reserva'}
           </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition">
             <X size={18} style={{ color: colors.textSecondary }} />
@@ -330,13 +354,9 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
                 value={form.tipo_sesion_id || ''}
                 onChange={e => {
                   const id = e.target.value || null;
-                  setForm(prev => ({ ...prev, tipo_sesion_id: id, descuento_pct: '', descuento_fijo: '' }));
-                  if (id) {
-                    const servicio = tiposSesion.find(t => t.id === id);
-                    setPrecioBase(servicio?.precio ? servicio.precio.toString() : '');
-                  } else {
-                    setPrecioBase('');
-                  }
+                  const servicio = id ? tiposSesion.find(t => t.id === id) : null;
+                  setForm(prev => ({ ...prev, tipo_sesion_id: id, tipo_sesion_nombre: servicio?.nombre || '', descuento_pct: '', descuento_fijo: '' }));
+                  setPrecioBase(servicio?.precio ? servicio.precio.toString() : '');
                 }}
                 className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={{ borderColor: colors.border, color: colors.text }}

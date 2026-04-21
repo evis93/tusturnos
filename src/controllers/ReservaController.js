@@ -233,6 +233,22 @@ export class ReservaController {
 
       if (error) throw error;
 
+      // Al confirmar: si la reserva tiene origen (es un cambio de horario), cancelar la original
+      if (nuevoEstado === 'confirmada') {
+        const { data: reserva } = await supabase
+          .from('reservas')
+          .select('reserva_origen_id')
+          .eq('id', id)
+          .single();
+
+        if (reserva?.reserva_origen_id) {
+          await supabase
+            .from('reservas')
+            .update({ estado: 'cancelada' })
+            .eq('id', reserva.reserva_origen_id);
+        }
+      }
+
       return { success: true };
     } catch (error) {
       return {

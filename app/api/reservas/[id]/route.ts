@@ -60,3 +60,41 @@ export async function GET(
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
+
+/**
+ * PATCH /api/reservas/[id]
+ * Actualiza estado de una reserva (uso cliente: cancelar).
+ * Body: { estado, clienteId }
+ */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const { estado, clienteId } = await req.json()
+    if (!estado) return NextResponse.json({ error: 'estado requerido' }, { status: 400 })
+
+    const sb = adminClient()
+
+    // Verificar que la reserva pertenece al cliente
+    const { data: reserva, error: fetchError } = await sb
+      .from('reservas')
+      .select('id, cliente_id, reserva_origen_id')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !reserva) return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
+    if (clienteId && reserva.cliente_id !== clienteId) {
+      return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+    }
+
+    const { error } = await sb.from('reservas').update({ estado }).eq('id', id)
+    if (error) throw error
+
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    console.error('[api/reservas/[id] PATCH]', e.message)
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}

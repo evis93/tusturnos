@@ -91,7 +91,8 @@ export default function AdminPage() {
         <h2 className="text-base font-semibold mb-4" style={{ color: colors.text }}>Configuración rápida</h2>
         <div className="space-y-1">
           {[
-            { href: '/admin/horarios',      icon: <Clock size={18} />,     label: 'Horarios de Atención' },
+            { href: '/admin/horarios-empresa', icon: <Clock size={18} />,     label: 'Horarios de Atención de la Empresa' },
+            { href: '/admin/horarios',      icon: <Clock size={18} />,     label: 'Horarios de Atención del Profesional' },
             { href: '/admin/profesionales', icon: <Users size={18} />,     label: 'Profesionales' },
             { href: '/admin/servicios',     icon: <Sparkles size={18} />,  label: 'Servicios' },
             { href: '/admin/clientes',      icon: <UserRound size={18} />, label: 'Clientes' },

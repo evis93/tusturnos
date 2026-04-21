@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
         ? sb.from('usuarios').select('id, nombre_completo, email, telefono').in('id', clienteIds)
         : { data: [], error: null },
       profesionalIds.length
-        ? sb.from('usuarios').select('id, nombre_completo').in('id', profesionalIds)
+        ? sb.from('usuarios').select('id, nombre_completo, telefono').in('id', profesionalIds)
         : { data: [], error: null },
       servicioIds.length
         ? sb.from('servicios').select('id, nombre, precio').in('id', servicioIds)
@@ -85,7 +85,8 @@ export async function GET(req: NextRequest) {
         cliente_nombre:     clienteMap[r.cliente_id]?.nombre_completo || '',
         cliente_email:      clienteMap[r.cliente_id]?.email || '',
         cliente_telefono:   clienteMap[r.cliente_id]?.telefono || '',
-        profesional_nombre: profesionalMap[r.profesional_id]?.nombre_completo || '',
+        profesional_nombre:    profesionalMap[r.profesional_id]?.nombre_completo || '',
+        profesional_telefono:  profesionalMap[r.profesional_id]?.telefono || '',
         servicio_nombre:    servicioMap[r.servicio_id]?.nombre || r.servicio_nombre || '',
         servicio_precio:    servicioMap[r.servicio_id]?.precio ?? null,
       }
@@ -100,7 +101,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { empresaId, clienteId, profesionalId, servicioId, sucursalId, fechaHoraInicio } = await req.json()
+    const { empresaId, clienteId, profesionalId, servicioId, sucursalId, fechaHoraInicio, reservaOrigenId } = await req.json()
     const servicioIdNormalizado = typeof servicioId === 'string' ? servicioId.trim() : servicioId
 
     if (!empresaId || !clienteId || !profesionalId || !fechaHoraInicio) {
@@ -116,18 +117,18 @@ export async function POST(req: NextRequest) {
     const fecha = fechaHoraInicio.split('T')[0]
     let duracionMinutos = 30 // duración por defecto cuando no hay servicio
 
+    let servicioNombre = ''
     if (servicioIdNormalizado) {
       try {
         const { data: servicio } = await sb
           .from('servicios')
-          .select('duracion_minutos')
+          .select('duracion_minutos, nombre')
           .eq('id', servicioIdNormalizado)
           .maybeSingle()
-        if (servicio?.duracion_minutos) {
-          duracionMinutos = servicio.duracion_minutos
-        }
+        if (servicio?.duracion_minutos) duracionMinutos = servicio.duracion_minutos
+        if (servicio?.nombre) servicioNombre = servicio.nombre
       } catch {
-        // Si falla la consulta del servicio, usamos 30 min por defecto
+        // Si falla la consulta del servicio, usamos valores por defecto
       }
     }
 
@@ -164,7 +165,9 @@ export async function POST(req: NextRequest) {
         cliente_id:           clienteId,
         profesional_id:       profesionalId,
         servicio_id:          servicioIdNormalizado || null,
+        servicio_nombre:      servicioNombre || null,
         sucursal_id:          sucursalId || null,
+        reserva_origen_id:    reservaOrigenId || null,
         fecha,
         hora_inicio:          fechaHoraInicio,
         estado:               'pendiente',

@@ -101,22 +101,40 @@ export class ReservaClienteController {
     }
   }
 
-  // Slots ya ocupados para un profesional en una fecha (devuelve array 'HH:MM')
-  static async obtenerSlotsOcupados(profesionalId, fecha) {
+  // Slots ya ocupados para un profesional en una fecha (devuelve array 'HH:MM').
+  // Si se pasa sucursalId, también incluye los slots ocupados por cualquier profesional en esa sucursal.
+  static async obtenerSlotsOcupados(profesionalId, fecha, sucursalId = null) {
     try {
-      const { data, error } = await supabase
-        .from('reservas')
-        .select('hora_inicio')
-        .eq('profesional_id', profesionalId)
-        .eq('fecha', fecha)
-        .not('estado', 'in', '("cancelada","rechazada","CANCELADA","RECHAZADA","CANCELADO","RECHAZADO")');
+      const estadosCancelados = '("cancelada","rechazada","CANCELADA","RECHAZADA","CANCELADO","RECHAZADO")';
 
-      if (error) throw error;
+      const queries = [
+        supabase
+          .from('reservas')
+          .select('hora_inicio')
+          .eq('profesional_id', profesionalId)
+          .eq('fecha', fecha)
+          .not('estado', 'in', estadosCancelados),
+      ];
 
-      // hora_inicio es timestamp without time zone → "YYYY-MM-DDTHH:MM:SS" → extraer HH:MM (pos 11-16)
-      const ocupados = (data || [])
-        .map(r => r.hora_inicio?.substring(11, 16))
-        .filter(Boolean);
+      if (sucursalId) {
+        queries.push(
+          supabase
+            .from('reservas')
+            .select('hora_inicio')
+            .eq('sucursal_id', sucursalId)
+            .eq('fecha', fecha)
+            .not('estado', 'in', estadosCancelados)
+        );
+      }
+
+      const results = await Promise.all(queries);
+      for (const { error } of results) { if (error) throw error; }
+
+      const ocupados = [...new Set(
+        results.flatMap(({ data }) =>
+          (data || []).map(r => r.hora_inicio?.substring(11, 16)).filter(Boolean)
+        )
+      )];
 
       return { success: true, data: ocupados };
     } catch (error) {
@@ -163,7 +181,7 @@ export class ReservaClienteController {
   }
 
   // Crea la solicitud de turno con estado 'PENDIENTE' vía API (service role)
-  static async solicitarReserva({ empresaId, profesionalId, clienteId, servicioId, sucursalId, fecha, horaInicio }) {
+  static async solicitarReserva({ empresaId, profesionalId, clienteId, servicioId, sucursalId, fecha, horaInicio, reservaOrigenId }) {
     try {
       // Combinar fecha + hora en string local (hora_inicio es timestamp without time zone)
       const fechaHoraInicio = `${fecha}T${horaInicio}:00`;
@@ -178,6 +196,7 @@ export class ReservaClienteController {
           servicioId: servicioId || null,
           sucursalId: sucursalId || null,
           fechaHoraInicio,
+          reservaOrigenId: reservaOrigenId || null,
         }),
       });
 

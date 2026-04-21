@@ -7,6 +7,7 @@ export class ReservaModel {
     this.autor_id = data.autor_id || null;
     this.servicio_id = data.servicio_id || data.tipo_sesion_id || null;
     this.sucursal_id = data.sucursal_id || null;
+    this.reserva_origen_id = data.reserva_origen_id || null;
 
     // Datos del cliente (enriquecidos)
     this.consultante_id = this.cliente_id;
@@ -76,7 +77,9 @@ export class ReservaModel {
       cliente_id: this.cliente_id,
       autor_id: this.autor_id,
       servicio_id: this.servicio_id,
+      servicio_nombre: this.servicio_nombre || null,
       sucursal_id: this.sucursal_id,
+      reserva_origen_id: this.reserva_origen_id || null,
       fecha: this.fecha,
       hora_inicio: this.hora_inicio,
       estado: this.estado,

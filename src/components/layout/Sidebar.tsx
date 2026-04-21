@@ -46,7 +46,7 @@ const PROFESIONAL_NAV: NavItem[] = [
 
 const CLIENTE_NAV: NavItem[] = [
   { label: 'Inicio', href: '/cliente', icon: <Home size={18} /> },
-  { label: 'Explorar profesionales o centros', href: '/cliente/explorar-profesionales', icon: <CalendarDays size={18} /> },
+  { label: 'Explorar', href: '/cliente/explorar-profesionales', icon: <CalendarDays size={18} /> },
 ];
 
 const MENSANA_NAV: NavItem[] = [
