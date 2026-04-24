@@ -60,25 +60,17 @@ export default function ReservarPage() {
     async function cargarDatos() {
       if (!profile?.empresaId || !profile?.usuarioId) return;
       setCargandoDatos(true);
-      const [resProf, resSvc, resReservas] = await Promise.all([
+      const [resProf, resSvc] = await Promise.all([
         (ReservaClienteController as any).obtenerProfesionalesEmpresa(profile.empresaId),
         (ReservaClienteController as any).obtenerServiciosEmpresa(profile.empresaId),
-        fetch(`/api/reservas?clienteId=${profile.usuarioId}&empresaId=${profile.empresaId}`).then(r => r.json()).catch(() => ({ success: false })),
       ]);
       if (resProf.success && resProf.data.length > 0) {
         setProfesionales(resProf.data);
         setProfSeleccionado(resProf.data[0]);
       }
       if (resSvc.success && resSvc.data.length > 0) {
-        const serviciosActivosIds = new Set(
-          (resReservas.success ? resReservas.data : [])
-            .filter((r: any) => ['pendiente', 'confirmada'].includes(r.estado?.toLowerCase()))
-            .map((r: any) => r.servicio_id)
-            .filter(Boolean)
-        );
-        const disponibles = resSvc.data.filter((s: any) => !serviciosActivosIds.has(s.id));
-        setServicios(disponibles);
-        if (disponibles.length > 0) setServicioSeleccionado(disponibles[0]);
+        setServicios(resSvc.data);
+        setServicioSeleccionado(resSvc.data[0]);
       }
       setCargandoDatos(false);
     }

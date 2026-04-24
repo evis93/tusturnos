@@ -113,7 +113,7 @@ export default function LoginPage() {
                 {[
                   {
                     icon: <Store size={20} />,
-                    title: 'Para Empresas',
+                    title: 'Para Empresas o Profesionales',
                     desc: 'Accedé a tu Centro Profesional. Panel de control con análisis en tiempo real y programación de personal.',
                   },
                   {
@@ -327,17 +327,16 @@ export default function LoginPage() {
               </div>
 
               {/* Social buttons */}
-              <div style={{ marginTop: '2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', justifyContent: 'center' }}>
                 {[
                   { label: 'Google', icon: 'https://www.google.com/favicon.ico' },
-                  { label: 'Apple', icon: 'https://www.apple.com/favicon.ico' },
                 ].map(s => (
                   <button
                     key={s.label}
                     type="button"
                     style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                      padding: '0.75rem', border: `1px solid ${C.outlineVariant}33`,
+                      marginTop: '2rem', display: 'grid', gap: '1rem',
+                      justifyItems: 'center',padding: '0.75rem', border: `1px solid ${C.outlineVariant}33`,
                       borderRadius: '0.75rem', fontWeight: 600, color: C.onSurface,
                       background: 'white', cursor: 'pointer', transition: 'background 0.2s',
                     }}

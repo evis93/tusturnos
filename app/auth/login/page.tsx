@@ -121,21 +121,20 @@ export default function LoginPage() {
                 />
               </div>
               <h1 style={{ fontSize: '2.75rem', fontWeight: 700, lineHeight: 1.2, marginBottom: '1.5rem' }}>
-                Gestionando el tiempo,{' '}
-                <span style={{ opacity: 0.8 }}>perfectamente compuesto.</span>
+                Turnos organizados,{' '}
+                <span style={{ opacity: 0.8 }}>clientes satisfechos.</span>
               </h1>
 
               <div style={{ marginTop: '3rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                {[
-                  {
+                {[                  {
                     icon: <Store size={20} />,
                     title: 'Para Empresas',
-                    desc: 'Accedé a tu Centro Profesional. Panel de control con análisis en tiempo real y programación de personal.',
+                    desc: 'Accedé a tu panel de control de turnos en tiempo real y programá tu espacio personal.',
                   },
                   {
                     icon: <User size={20} />,
                     title: 'Para Clientes',
-                    desc: 'Reservá turnos fácilmente con los profesionales de tu confianza, cuando y donde quieras.',
+                    desc: 'Reservá turnos fácilmente con centros y/o profesionales de tu confianza o sugeridos por nuestra comunidad, cuando y donde quieras.',
                   },
                 ].map(item => (
                   <div key={item.title} style={{ display: 'flex', gap: '1rem' }}>
@@ -346,7 +345,6 @@ export default function LoginPage() {
               <div style={{ marginTop: '2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 {[
                   { label: 'Google', icon: 'https://www.google.com/favicon.ico' },
-                  { label: 'Apple', icon: 'https://www.apple.com/favicon.ico' },
                 ].map(s => (
                   <button
                     key={s.label}
