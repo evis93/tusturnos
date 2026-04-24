@@ -1,42 +1,32 @@
 'use client';
 
+import { useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { colors, empresaNombre } = useTheme();
-  const { profile } = useAuth();
+  const { colors } = useTheme();
+  const { profile } = useAuth(); // eslint-disable-line @typescript-eslint/no-unused-vars
 
-  const isTusTurnos = profile?.rol === 'superadmin';
+  useEffect(() => {
+    const favicon = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+    if (!favicon) return;
+    if (profile?.logoUrl) {
+      favicon.href = profile.logoUrl;
+    } else {
+      favicon.href = '/icon.png';
+    }
+    return () => { favicon.href = '/icon.png'; };
+  }, [profile?.logoUrl]);
 
   return (
     <div className="flex min-h-screen" style={{ background: colors.background }}>
       <Sidebar />
       <main className="flex-1 overflow-auto flex flex-col">
-        {/* Header secundario — color de la empresa */}
-        <header
-          className="flex items-center px-5 py-3 flex-shrink-0"
-          style={{ backgroundColor: colors.secondary }}
-        >
-          <span className="text-sm font-bold text-white/90 lowercase tracking-wide">
-            {empresaNombre || 'Tus Turnos'}
-          </span>
-        </header>
-
         <div className="flex-1">
           {children}
         </div>
-
-        <footer className="px-6 py-4 border-t text-center" style={{ borderColor: colors.borderLight }}>
-          <p className="text-xs" style={{ color: colors.textMuted }}>© 2026 Tus Turnos</p>
-          {!isTusTurnos && (
-            <p className="text-xs mt-0.5" style={{ color: colors.textMuted }}>
-              Powered by{' '}
-              <span style={{ color: colors.primary }} className="font-semibold">mensana</span>
-            </p>
-          )}
-        </footer>
       </main>
     </div>
   );

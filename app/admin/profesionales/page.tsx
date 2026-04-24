@@ -5,6 +5,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { ProfesionalController } from '@/src/controllers/ProfesionalController';
 import { Plus, Pencil, UserX } from 'lucide-react';
+import TelefonoInput from '@/src/components/ui/TelefonoInput';
 
 export default function ProfesionalesPage() {
   const { profile } = useAuth();
@@ -134,22 +135,30 @@ export default function ProfesionalesPage() {
             </h2>
 
             <div className="space-y-3">
-              {(['nombre', 'email', 'telefono'] as const).map(field => (
+              {(['nombre', 'email'] as const).map(field => (
                 <div key={field}>
                   <label className="block text-sm font-medium mb-1 capitalize" style={{ color: colors.text }}>
-                    {field === 'nombre' ? 'Nombre completo' : field.charAt(0).toUpperCase() + field.slice(1)}
+                    {field === 'nombre' ? 'Nombre completo' : 'Email'}
                     {field === 'nombre' || (field === 'email' && !editandoId) ? ' *' : ''}
                   </label>
                   <input
                     type={field === 'email' ? 'email' : 'text'}
                     value={form[field]}
                     onChange={e => setForm(prev => ({ ...prev, [field]: e.target.value }))}
-                    placeholder={field === 'nombre' ? 'María García' : field === 'email' ? 'email@ejemplo.com' : '+54 11 ...'}
+                    placeholder={field === 'nombre' ? 'María García' : 'email@ejemplo.com'}
                     className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     style={{ borderColor: colors.border }}
                   />
                 </div>
               ))}
+
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Teléfono</label>
+                <TelefonoInput
+                  value={form.telefono}
+                  onChange={v => setForm(prev => ({ ...prev, telefono: v }))}
+                />
+              </div>
 
               <label className="flex items-center gap-3 cursor-pointer">
                 <input

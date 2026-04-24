@@ -16,6 +16,7 @@ export interface ResolvedTenant {
     background: string;
   };
   logo_url: string | null;
+  producto: string;
 }
 
 function mapTenant(raw: any, fallbackSlug: string): ResolvedTenant {
@@ -23,6 +24,7 @@ function mapTenant(raw: any, fallbackSlug: string): ResolvedTenant {
     id: raw.id,
     nombre: raw.nombre ?? fallbackSlug,
     slug: raw.slug ?? fallbackSlug,
+    producto: raw.producto ?? 'tusturnos',
     colors: {
       primary:    (raw.color_primary    ?? '#3498db').trim(),
       secondary:  (raw.color_secondary  ?? '#00d2ff').trim(),
@@ -36,19 +38,21 @@ function mapTenant(raw: any, fallbackSlug: string): ResolvedTenant {
  * Resuelve tenant por slug de URL.
  * Intenta por slug exacto primero, luego por nombre como fallback.
  */
-export async function resolveBySlug(slug: string): Promise<ResolvedTenant | null> {
-  // 1. Por slug exacto
-  let raw = await EmpresaRepository.findBySlug(slug);
-
-  // 2. Fallback: slug como nombre ("monalisa" → "Monalisa Estetica")
+export async function resolveBySlug(
+  slug: string,
+  producto: string
+): Promise<ResolvedTenant | null> {
+  let raw: any = await EmpresaRepository.findBySlug(slug);
   if (!raw) {
     raw = await EmpresaRepository.findByNombre(slug.replace(/[-_]/g, ' '));
   }
-
   if (!raw) return null;
+
+  // Si el producto no coincide → no mostrar la empresa
+  if (producto && (raw.producto ?? 'tusturnos') !== producto) return null;
+
   return mapTenant(raw, slug);
 }
-
 /**
  * Resuelve tenant por dominio propio (custom domain).
  * Si la empresa existe y tiene ese dominio configurado, se permite acceso.

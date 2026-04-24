@@ -9,7 +9,7 @@ import { supabase } from '@/src/config/supabase';
 import { Building2, Users } from 'lucide-react';
 
 
-export default function TusTurnosPage() {
+export default function MensanaPage() {
   const { colors } = useTheme();
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -26,7 +26,7 @@ export default function TusTurnosPage() {
   useEffect(() => {
     supabase
       .from('empresas')
-      .select('id, nombre, descripcion, logo_url, activo, color_primary')
+      .select('id, nombre, descripcion, logo_url, activa, color_primary')
       .order('nombre')
       .then(({ data }) => {
         if (data) setEmpresas(data);
@@ -48,7 +48,7 @@ export default function TusTurnosPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: colors.text }}>Gestión de Empresas</h1>
-          <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>Panel de superadmin Tus Turnos</p>
+          <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>Panel de superadmin Mensana</p>
         </div>
       </div>
 
@@ -68,7 +68,7 @@ export default function TusTurnosPage() {
             <Users size={20} style={{ color: colors.success }} />
             <div>
               <p className="text-2xl font-bold" style={{ color: colors.success }}>
-                {empresas.filter(e => e.activo).length}
+                {empresas.filter(e => e.activa).length}
               </p>
               <p className="text-xs" style={{ color: colors.textSecondary }}>Activas</p>
             </div>
@@ -87,7 +87,7 @@ export default function TusTurnosPage() {
             <div
               key={empresa.id}
               className="bg-white rounded-xl border p-4 flex items-center gap-4"
-              style={{ borderColor: colors.border, opacity: empresa.activo ? 1 : 0.6 }}
+              style={{ borderColor: colors.border, opacity: empresa.activa ? 1 : 0.6 }}
             >
               <div
                 className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0"
@@ -106,9 +106,9 @@ export default function TusTurnosPage() {
               </div>
               <span
                 className="text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0"
-                style={{ background: empresa.activo ? '#d1fae5' : '#fee2e2', color: empresa.activo ? '#065f46' : '#991b1b' }}
+                style={{ background: empresa.activa ? '#d1fae5' : '#fee2e2', color: empresa.activa ? '#065f46' : '#991b1b' }}
               >
-                {empresa.activo ? 'Activa' : 'Inactiva'}
+                {empresa.activa ? 'Activa' : 'Inactiva'}
               </span>
             </div>
           ))}

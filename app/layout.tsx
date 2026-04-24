@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/src/context/AuthContext';
 import { BusinessProvider } from '@/src/context/BusinessContext';
 import { ThemeProvider } from '@/src/context/ThemeContext';
+import { SucursalProvider } from '@/src/context/SucursalContext';
 
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope', weight: ['400', '600', '700', '800'] });
 
@@ -17,14 +18,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" />
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body className={`${manrope.variable} font-[family-name:var(--font-manrope)] antialiased`} suppressHydrationWarning>
         <BusinessProvider>
           <AuthProvider>
             <ThemeProvider>
-              {children}
+              <SucursalProvider>
+                {children}
+              </SucursalProvider>
             </ThemeProvider>
           </AuthProvider>
         </BusinessProvider>

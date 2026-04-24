@@ -1,15 +1,12 @@
+// middleware.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 
-// En producción: tusturnos.ar
-// En local (con /etc/hosts): sobreescribir con TUSTURNOS_DOMAIN=tusturnos.local en .env.local
-const TUSTURNOS_DOMAIN = process.env.TUSTURNOS_DOMAIN ?? 'tusturnos.ar';
+const DOMAINS = {
+  mensana: process.env.MENSANA_DOMAIN ?? 'mensana.com.ar',
+  tusturnos: process.env.TUSTURNOS_DOMAIN ?? 'tusturnos.ar',
+};
 
-/**
- * Paths que nunca se reescriben para routing de tenant.
- * Los dashboards autenticados, rutas internas de Next.js y APIs
- * se sirven tal cual incluso en subdominios.
- * /auth NO está aquí — en subdominios se reescribe a /tusturnos/[slug]/auth/...
- */
 const BYPASS_PREFIXES = [
   '/_next',
   '/api',
@@ -17,6 +14,7 @@ const BYPASS_PREFIXES = [
   '/profesional',
   '/cliente',
   '/tusturnos',
+  '/mensana',      // ← agregar
   '/favicon.ico',
   '/robots.txt',
   '/images',
@@ -32,44 +30,62 @@ function shouldBypass(pathname: string): boolean {
   );
 }
 
+type Product = 'mensana' | 'tusturnos';
+
+function detectProduct(hostname: string): { product: Product; slug: string | null } | null {
+  for (const [product, domain] of Object.entries(DOMAINS) as [Product, string][]) {
+    if (hostname === domain || hostname === `www.${domain}`) {
+      return { product, slug: null };
+    }
+    if (hostname.endsWith(`.${domain}`)) {
+      const slug = hostname.replace(`.${domain}`, '');
+      if (slug === 'www') return { product, slug: null };
+      return { product, slug };
+    }
+  }
+  return null;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  // x-original-host lo inyecta el Cloudflare Worker (preserva el subdominio real)
-  const hostname = request.headers.get('x-original-host') || request.headers.get('host') || '';
-  const cleanHostname = hostname.split(':')[0]; // quitar puerto en dev
+  const hostname =
+    request.headers.get('x-original-host') ||
+    request.headers.get('host') ||
+    '';
+  const cleanHostname = hostname.split(':')[0];
 
   if (shouldBypass(pathname)) return NextResponse.next();
 
-  // ── 1. Subdominio: {slug}.tusturnos.ar ──────────────────────────────
-  if (cleanHostname.endsWith(`.${TUSTURNOS_DOMAIN}`)) {
-    const slug = cleanHostname.replace(`.${TUSTURNOS_DOMAIN}`, '');
-    if (slug === 'www') return NextResponse.next();
+  const detected = detectProduct(cleanHostname);
 
+  // ── 1. Subdominio: {slug}.mensana.com.ar o {slug}.tusturnos.ar ──────
+  if (detected?.slug) {
+    const { product, slug } = detected;
     const tenantPath = pathname === '/' ? '/auth/login' : pathname;
     const url = request.nextUrl.clone();
-    url.pathname = `/tusturnos/${slug}${tenantPath}`;
+    url.pathname = `/${product}/${slug}${tenantPath}`;
 
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-tenant-slug', slug);
+    requestHeaders.set('x-tenant-product', product);
     requestHeaders.set('x-tenant-source', 'subdomain');
 
     return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
   }
 
-  // ── 2. URL interna: tusturnos.ar/e/{slug} ───────────────────────────
-  if (
-    cleanHostname === TUSTURNOS_DOMAIN ||
-    cleanHostname === `www.${TUSTURNOS_DOMAIN}`
-  ) {
+  // ── 2. URL interna: /e/{slug} en apex de cualquier dominio ──────────
+  if (detected && !detected.slug) {
+    const { product } = detected;
     const match = pathname.match(/^\/e\/([^/]+)(\/.*)?$/);
     if (match) {
       const slug = match[1];
       const rest = match[2] ?? '/auth/login';
       const url = request.nextUrl.clone();
-      url.pathname = `/tusturnos/${slug}${rest}`;
+      url.pathname = `/${product}/${slug}${rest}`;
 
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set('x-tenant-slug', slug);
+      requestHeaders.set('x-tenant-product', product);
       requestHeaders.set('x-tenant-source', 'path');
 
       return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
@@ -77,11 +93,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── 3. Dominio propio (plan PRO / PRO-WEB) ────────────────────────────
-  // No es tusturnos.ar, no es localhost, no es preview de Vercel.
-  // La validación del plan ocurre en tenant-server.ts (requiere Supabase).
+  // ── 3. Dominio propio (plan PRO) ─────────────────────────────────────
   const isCustomDomain =
-    !cleanHostname.includes(TUSTURNOS_DOMAIN) &&
+    !Object.values(DOMAINS).some((d) => cleanHostname.includes(d)) &&
     !cleanHostname.includes('localhost') &&
     !cleanHostname.endsWith('.vercel.app');
 
@@ -89,7 +103,6 @@ export function middleware(request: NextRequest) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-custom-domain', cleanHostname);
     requestHeaders.set('x-tenant-source', 'custom-domain');
-
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 

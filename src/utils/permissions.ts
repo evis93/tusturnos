@@ -16,6 +16,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'profesionales:read',
     'horarios:read', 'horarios:write',
     'consultantes:read', 'consultantes:write',
+    'servicios:read',
   ],
   cliente: [
     'explorar:read',

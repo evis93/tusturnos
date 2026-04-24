@@ -1,12 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { supabase } from '@/src/config/supabase';
-import { ReservaController } from '@/src/controllers/ReservaController';
 import ModalResena from '@/src/components/ModalResena';
 
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -32,12 +31,12 @@ function formatFechaHistorial(fechaStr: string) {
 export default function ClientePage() {
   const router = useRouter();
   const { colors, logoUrl } = useTheme();
-  const { profile, logout } = useAuth();
+  const { profile } = useAuth();
 
   const nombreCorto = profile?.nombre_completo?.split(' ')[0]?.toLowerCase() || 'hola';
 
   const [loading, setLoading] = useState(true);
-  const [proximaSesion, setProximaSesion] = useState<any>(null);
+  const [proximasSesiones, setProximasSesiones] = useState<any[]>([]);
   const [historial, setHistorial] = useState<any[]>([]);
   const [resenasMap, setResenasMap] = useState<Record<string, any>>({});
   const [reservaParaResena, setReservaParaResena] = useState<any>(null);
@@ -48,24 +47,26 @@ export default function ClientePage() {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      const { data, error } = await supabase
-        .from('reservas')
-        .select('*')
-        .eq('cliente_id', profile.usuarioId)
-        .eq('empresa_id', profile.empresaId)
-        .order('fecha', { ascending: false });
+      const res = await fetch(`/api/reservas?clienteId=${profile.usuarioId}&empresaId=${profile.empresaId}`);
+      if (!res.ok) { setLoading(false); return; }
+      const json = await res.json();
+      if (!json.success) { setLoading(false); return; }
 
-      if (error) throw error;
-
-      const todas = await (ReservaController as any).enriquecerReservas(data || []);
+      // fecha y hora ya vienen normalizados desde la API (time without time zone)
+      const todas = (json.data as any[]).map((r: any) => ({
+        ...r,
+        servicio: r.servicio_nombre,
+      }));
 
       const proximas = todas
-        .filter((r: any) => r.fecha >= today && ['pendiente', 'confirmada'].includes(r.estado))
-        .sort((a: any, b: any) => a.fecha.localeCompare(b.fecha) || a.hora_inicio.localeCompare(b.hora_inicio));
+        .filter((r: any) => r.fecha >= today && ['pendiente', 'confirmada'].includes(r.estado?.toLowerCase()))
+        .sort((a: any, b: any) => a.hora_inicio.localeCompare(b.hora_inicio));
 
-      const pasadas = todas.filter((r: any) => r.fecha < today).slice(0, 3);
+      const pasadas = todas
+        .filter((r: any) => r.fecha < today && ['pendiente', 'confirmada', 'completada'].includes(r.estado?.toLowerCase()))
+        .slice(0, 3);
 
-      setProximaSesion(proximas[0] || null);
+      setProximasSesiones(proximas);
       setHistorial(pasadas);
 
       const pasadasIds = pasadas.map((r: any) => r.id).filter(Boolean);
@@ -75,8 +76,8 @@ export default function ClientePage() {
         (resenasData || []).forEach((r: any) => { map[r.reserva_id] = r; });
         setResenasMap(map);
       }
-    } catch (e) {
-      console.error('[ClientePage]', e);
+    } catch {
+      // silenciar errores de API (ej. permisos) — mostrar estado vacío
     } finally {
       setLoading(false);
     }
@@ -84,18 +85,53 @@ export default function ClientePage() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  const buildWhatsAppUrl = (reserva: any, tipo: 'cancelar' | 'cambiar') => {
+    const telefono = reserva.profesional_telefono?.replace(/\D/g, '');
+    if (!telefono) return null;
+
+    let texto = tipo === 'cancelar'
+      ? 'Solicito la cancelación de la reserva.'
+      : 'Solicito un cambio de horario de mi reserva.';
+
+    if (tipo === 'cancelar' && reserva.seña_pagada && reserva.vencimiento_seña) {
+      const hoy = new Date().toISOString().split('T')[0];
+      if (hoy <= reserva.vencimiento_seña) {
+        texto += ' Dentro de las 24 hs devolveremos su seña.';
+      } else {
+        texto += ' Su seña ha vencido, por lo tanto no le será devuelta.';
+      }
+    }
+
+    return `https://wa.me/${telefono}?text=${encodeURIComponent(texto)}`;
+  };
+
+  const handleCancelar = async (reserva: any) => {
+    if (!window.confirm('¿Cancelar esta reserva?')) return;
+    const res = await fetch(`/api/reservas/${reserva.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado: 'cancelada', clienteId: profile?.usuarioId }),
+    });
+    if (res.ok) {
+      // Notificar al profesional por WhatsApp si tiene teléfono
+      const url = buildWhatsAppUrl(reserva, 'cancelar');
+      if (url) window.open(url, '_blank');
+      cargar();
+    } else {
+      window.alert('No se pudo cancelar la reserva. Intentá de nuevo.');
+    }
+  };
+
+  const handleCambiarHorario = (reserva: any) => {
+    router.push(`/cliente/reservar?cambiarId=${reserva.id}`);
+  };
+
   const handleBorrarResena = async (reservaId: string) => {
     const resena = resenasMap[reservaId];
     if (!resena?.id) return;
     if (!window.confirm('¿Eliminar esta reseña?')) return;
     const { error } = await supabase.from('resenas').delete().eq('id', resena.id);
     if (!error) setResenasMap(prev => { const n = { ...prev }; delete n[reservaId]; return n; });
-  };
-
-  const handleLogout = async () => {
-    if (!window.confirm('¿cerrar sesión?')) return;
-    await logout();
-    router.replace('/auth/login');
   };
 
   if (loading) {
@@ -107,76 +143,87 @@ export default function ClientePage() {
   }
 
   return (
-    <div className="min-h-screen pb-20" style={{ backgroundColor: colors.background }}>
+    <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
       {/* Header */}
       <header className="px-6 py-5 flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-widest" style={{ color: colors.textMuted }}>bienvenido</p>
-          <h1 className="text-xl font-bold" style={{ color: colors.primary }}>hola, {nombreCorto}</h1>
+          <h1 className="text-xl font-bold" style={{ color: colors.secondary }}>hola, {nombreCorto}</h1>
         </div>
-        {logoUrl && <img src={logoUrl} alt="logo" className="w-9 h-9 rounded-xl object-cover" />}
       </header>
 
       <div className="px-6 space-y-7">
-        {/* Próxima sesión */}
+        {/* Nueva reserva */}
+        <Link href="/cliente/reservar"
+          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-bold"
+          style={{ backgroundColor: colors.primary, color: '#fff' }}>
+          + nueva reserva
+        </Link>
+
+        {/* Próximas sesiones */}
         <section>
-          <p className="text-xs uppercase tracking-wider mb-3" style={{ color: colors.textSecondary }}>próxima sesión</p>
+          <p className="text-xs uppercase tracking-wider mb-3" style={{ color: colors.textSecondary }}>próximas sesiones</p>
 
-          {proximaSesion ? (
-            <>
-              <div className="bg-white rounded-2xl p-5 shadow-sm border" style={{ borderColor: colors.borderLight }}>
-                {/* Badge estado */}
-                {proximaSesion.estado === 'pendiente' ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 mb-3">
-                    ⏰ pendiente de confirmación
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-green-100 text-green-700 mb-3">
-                    ✓ confirmada
-                  </span>
-                )}
+          {proximasSesiones.length > 0 ? (
+            <div className="space-y-3">
+              {proximasSesiones.map((sesion: any) => (
+                <div key={sesion.id}>
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border" style={{ borderColor: colors.borderLight }}>
+                    {sesion.estado?.toLowerCase() === 'pendiente' ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 mb-3">
+                        ⏰ pendiente de confirmación
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-green-100 text-green-700 mb-3">
+                        ✓ confirmada
+                      </span>
+                    )}
 
-                <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: colors.primary }}>
-                  {formatProxima(proximaSesion.fecha, proximaSesion.hora_inicio)}
-                </p>
-                <p className="text-lg font-bold lowercase mb-1" style={{ color: colors.text }}>
-                  {proximaSesion.servicio || proximaSesion.tipo_sesion || 'sesión'}
-                </p>
-                {proximaSesion.profesional_nombre && (
-                  <p className="text-xs lowercase mb-4" style={{ color: colors.textMuted }}>
-                    👤 {proximaSesion.profesional_nombre}
-                  </p>
-                )}
-                <div className="flex gap-2">
-                  <button className="flex-1 py-2.5 rounded-xl text-xs font-bold border" style={{ borderColor: colors.border, color: colors.textSecondary }}>
-                    cancelar
-                  </button>
-                  {proximaSesion.estado === 'confirmada' && (
-                    <button className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ backgroundColor: colors.primaryFaded, color: colors.primary }}>
-                      cambiar horario
-                    </button>
+                    <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: colors.primary }}>
+                      {formatProxima(sesion.fecha, sesion.hora)}
+                    </p>
+                    <p className="text-lg font-bold lowercase mb-1" style={{ color: colors.text }}>
+                      {sesion.servicio || 'sesión'}
+                    </p>
+                    {sesion.profesional_nombre && (
+                      <p className="text-xs lowercase mb-4" style={{ color: colors.textMuted }}>
+                        👤 {sesion.profesional_nombre}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleCancelar(sesion)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold border"
+                        style={{ borderColor: colors.border, color: colors.textSecondary }}
+                      >
+                        cancelar
+                      </button>
+                      {sesion.estado?.toLowerCase() === 'confirmada' && (
+                        <button
+                          onClick={() => handleCambiarHorario(sesion)}
+                          className="flex-1 py-2.5 rounded-xl text-xs font-bold"
+                          style={{ backgroundColor: colors.primaryFaded, color: colors.primary }}
+                        >
+                          cambiar horario
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {sesion.estado?.toLowerCase() === 'pendiente' && (
+                    <div className="mt-2 flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                      <span className="text-green-600">💬</span>
+                      <p className="text-xs text-green-800 lowercase">
+                        tu reserva depende de la aprobación del centro. te avisaremos cuando sea confirmada.
+                      </p>
+                    </div>
                   )}
                 </div>
-              </div>
-
-              {proximaSesion.estado === 'pendiente' && (
-                <div className="mt-3 flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-                  <span className="text-green-600">💬</span>
-                  <p className="text-xs text-green-800 lowercase">
-                    tu reserva depende de la aprobación del centro. te avisaremos cuando sea confirmada.
-                  </p>
-                </div>
-              )}
-            </>
+              ))}
+            </div>
           ) : (
             <div className="bg-white rounded-2xl p-6 flex flex-col items-center gap-3 border" style={{ borderColor: colors.borderLight }}>
               <span className="text-3xl opacity-30">📅</span>
               <p className="text-sm lowercase" style={{ color: colors.textMuted }}>sin sesiones próximas</p>
-              <Link href="/cliente/reservar"
-                className="flex items-center gap-1 px-4 py-2 rounded-full border text-xs font-bold"
-                style={{ borderColor: colors.primary, color: colors.primary }}>
-                + reservar ahora
-              </Link>
             </div>
           )}
         </section>
@@ -195,28 +242,30 @@ export default function ClientePage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs lowercase mb-0.5" style={{ color: colors.textMuted }}>{formatFechaHistorial(h.fecha)}</p>
-                    <p className="text-sm font-bold lowercase mb-0.5" style={{ color: colors.text }}>{h.servicio || h.tipo_sesion || 'sesión'}</p>
+                    <p className="text-sm font-bold lowercase mb-0.5" style={{ color: colors.text }}>{h.servicio || 'sesión'}</p>
                     {h.profesional_nombre && <p className="text-xs lowercase mb-2" style={{ color: colors.textSecondary }}>{h.profesional_nombre}</p>}
 
-                    {resenasMap[h.id] ? (
-                      <div className="flex gap-2">
+                    {h.estado?.toLowerCase() === 'completada' && (
+                      resenasMap[h.id] ? (
+                        <div className="flex gap-2">
+                          <button onClick={() => setReservaParaResena(h)}
+                            className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
+                            style={{ borderColor: colors.primary, color: colors.primary }}>
+                            ✏️ editar
+                          </button>
+                          <button onClick={() => handleBorrarResena(h.id)}
+                            className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
+                            style={{ borderColor: colors.error, color: colors.error }}>
+                            🗑 borrar
+                          </button>
+                        </div>
+                      ) : (
                         <button onClick={() => setReservaParaResena(h)}
                           className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
                           style={{ borderColor: colors.primary, color: colors.primary }}>
-                          ✏️ editar
+                          calificar ★
                         </button>
-                        <button onClick={() => handleBorrarResena(h.id)}
-                          className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
-                          style={{ borderColor: colors.error, color: colors.error }}>
-                          🗑 borrar
-                        </button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setReservaParaResena(h)}
-                        className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
-                        style={{ borderColor: colors.primary, color: colors.primary }}>
-                        calificar ★
-                      </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -230,10 +279,10 @@ export default function ClientePage() {
           )}
         </section>
 
-        {/* Para vos */}
+        {/* BIENVENIDO */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs uppercase tracking-wider" style={{ color: colors.textSecondary }}>para vos</p>
+            <p className="text-xs uppercase tracking-wider" style={{ color: colors.textSecondary }}>pensando en tu bienestar integral</p>
             <button className="text-xs font-bold lowercase" style={{ color: colors.primary }}>ver más</button>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -263,21 +312,6 @@ export default function ClientePage() {
         onGuardado={() => { setReservaParaResena(null); cargar(); }}
       />
 
-      {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 border-t flex justify-between px-6 py-3" style={{ borderColor: colors.borderLight }}>
-        <Link href="/cliente/reservar" className="flex flex-col items-center gap-0.5">
-          <span className="text-lg">📅</span>
-          <span className="text-xs lowercase" style={{ color: colors.textMuted }}>sesiones</span>
-        </Link>
-        <button className="flex flex-col items-center gap-0.5">
-          <span className="text-lg">👤</span>
-          <span className="text-xs lowercase" style={{ color: colors.textMuted }}>perfil</span>
-        </button>
-        <button onClick={handleLogout} className="flex flex-col items-center gap-0.5">
-          <span className="text-lg">🚪</span>
-          <span className="text-xs font-bold lowercase" style={{ color: colors.error }}>salir</span>
-        </button>
-      </nav>
     </div>
   );
 }

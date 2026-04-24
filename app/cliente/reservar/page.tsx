@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useSucursal } from '@/src/context/SucursalContext';
 import { ReservaClienteController } from '@/src/controllers/ReservaClienteController';
 
 const DIAS_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -22,14 +23,13 @@ function fechaISO(date: Date) {
   return date.toISOString().split('T')[0];
 }
 
-function formatearFechaLarga(date: Date) {
-  return `${DIAS_CORTO[date.getDay()]} ${date.getDate()} de ${MESES[date.getMonth()]}`;
-}
-
 export default function ReservarPage() {
   const router = useRouter();
-  const { profile, logout } = useAuth();
+  const searchParams = useSearchParams();
+  const cambiarId = searchParams.get('cambiarId');
+  const { profile } = useAuth();
   const { colors } = useTheme();
+  const { sucursalActiva } = useSucursal();
 
   const color = profile?.colorPrimario || colors.primary;
 
@@ -58,7 +58,7 @@ export default function ReservarPage() {
 
   useEffect(() => {
     async function cargarDatos() {
-      if (!profile?.empresaId) return;
+      if (!profile?.empresaId || !profile?.usuarioId) return;
       setCargandoDatos(true);
       const [resProf, resSvc] = await Promise.all([
         (ReservaClienteController as any).obtenerProfesionalesEmpresa(profile.empresaId),
@@ -68,14 +68,14 @@ export default function ReservarPage() {
         setProfesionales(resProf.data);
         setProfSeleccionado(resProf.data[0]);
       }
-      if (resSvc.success) {
+      if (resSvc.success && resSvc.data.length > 0) {
         setServicios(resSvc.data);
-        if (resSvc.data.length > 0) setServicioSeleccionado(resSvc.data[0]);
+        setServicioSeleccionado(resSvc.data[0]);
       }
       setCargandoDatos(false);
     }
     cargarDatos();
-  }, [profile?.empresaId]);
+  }, [profile?.empresaId, profile?.usuarioId]);
 
   useEffect(() => {
     const profId = profSeleccionado?.id;
@@ -92,8 +92,8 @@ export default function ReservarPage() {
       const fechaStr = fechaISO(diaSeleccionado);
 
       const [resHorarios, resOcupados] = await Promise.all([
-        (ReservaClienteController as any).obtenerHorariosDelDia(profId, diaSemana),
-        (ReservaClienteController as any).obtenerSlotsOcupados(profId, fechaStr),
+        (ReservaClienteController as any).obtenerHorariosDelDia(profId, diaSemana, profile?.empresaId),
+        (ReservaClienteController as any).obtenerSlotsOcupados(profId, fechaStr, sucursalActiva?.id ?? null),
       ]);
 
       if (cancelado) return;
@@ -120,28 +120,24 @@ export default function ReservarPage() {
       profesionalId: profSeleccionado.id,
       clienteId: profile!.usuarioId,
       servicioId: servicioSeleccionado?.id || null,
+      sucursalId: sucursalActiva?.id || null,
       fecha: fechaISO(diaSeleccionado),
       horaInicio: slotSeleccionado,
+      reservaOrigenId: cambiarId || null,
     });
     setEnviando(false);
     if (res.success) {
-      window.alert('¡Solicitud enviada! Tu turno fue solicitado. El centro lo confirmará a la brevedad.');
+      const msg = cambiarId
+        ? '¡Cambio solicitado! Cuando el centro confirme el nuevo horario, el turno anterior quedará cancelado automáticamente.'
+        : '¡Solicitud enviada! Tu turno fue solicitado. El centro lo confirmará a la brevedad.';
+      window.alert(msg);
       router.replace('/cliente');
     } else {
       window.alert('Error: ' + (res.error || 'No se pudo enviar la solicitud.'));
     }
   };
 
-  const handleLogout = async () => {
-    if (!window.confirm('¿cerrar sesión?')) return;
-    await logout();
-    router.replace('/auth/login');
-  };
-
   const puedeEnviar = profSeleccionado && slotSeleccionado && diaSeleccionado && !enviando;
-  const resumenFecha = diaSeleccionado ? formatearFechaLarga(diaSeleccionado) : '—';
-  const resumenPrecio = servicioSeleccionado?.precio
-    ? `$${Number(servicioSeleccionado.precio).toLocaleString('es-AR')}` : null;
 
   if (cargandoDatos) {
     return (
@@ -157,10 +153,19 @@ export default function ReservarPage() {
       {/* Header */}
       <header className="flex items-center gap-3 px-4 py-4 text-white" style={{ backgroundColor: color }}>
         <button onClick={() => router.replace('/cliente')} className="text-white text-xl">‹</button>
-        <h1 className="text-base font-bold">{profile?.empresaNombre || 'Reservar turno'}</h1>
+        <h1 className="text-base font-bold">{cambiarId ? 'Elegí el nuevo horario' : (profile?.empresaNombre || 'Reservar turno')}</h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto pb-48">
+      {cambiarId && (
+        <div className="mx-4 mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <span>🔄</span>
+          <p className="text-xs text-amber-800">
+            estás solicitando un cambio de horario. cuando el centro confirme el nuevo turno, el anterior quedará cancelado automáticamente.
+          </p>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto pb-24">
         {/* Profesionales */}
         <div className="px-5 py-4 border-b border-blue-50">
           <p className="text-base font-bold text-gray-800 mb-3">Seleccioná un profesional</p>
@@ -183,7 +188,7 @@ export default function ReservarPage() {
         </div>
 
         {/* Servicios */}
-        {servicios.length > 0 && (
+        {servicios.length > 0 ? (
           <div className="px-5 py-4 border-b border-blue-50">
             <p className="text-base font-bold text-gray-800 mb-3">Seleccioná un servicio</p>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -196,11 +201,17 @@ export default function ReservarPage() {
                     style={activo
                       ? { backgroundColor: color, borderColor: color, color: '#fff' }
                       : { backgroundColor: '#fff', borderColor: '#d0e8f5', color: '#475569' }}>
-                    {svc.nombre}{svc.precio ? `  ·  $${Number(svc.precio).toLocaleString('es-AR')}` : ''}
+                    {svc.nombre}{svc.precio ? ` · $${Number(svc.precio).toLocaleString('es-AR')}` : ''}
                   </button>
                 );
               })}
             </div>
+          </div>
+        ) : (
+          <div className="px-5 py-6 flex flex-col items-center gap-2 text-center">
+            <span className="text-3xl opacity-30">✅</span>
+            <p className="text-sm font-bold text-gray-600">ya tenés todos los servicios reservados</p>
+            <p className="text-xs text-gray-400">cuando se complete o cancele una reserva, podrás volver a reservar ese servicio.</p>
           </div>
         )}
 
@@ -313,44 +324,18 @@ export default function ReservarPage() {
               )}
             </>
           )}
-
-          {slotSeleccionado && (
-            <div className="mt-4 flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-              <span>ℹ️</span>
-              <p className="text-xs text-yellow-800">
-                Tu reserva quedará <strong>pendiente de confirmación</strong> por parte del centro.
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Footer fijo */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t px-5 py-4 space-y-3" style={{ borderColor: '#e1f5fe' }}>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Resumen de turno</p>
-            <p className="text-sm font-bold text-gray-800 mt-0.5">{resumenFecha} · {slotSeleccionado || '—'}</p>
-            {profSeleccionado && <p className="text-xs text-gray-500">{profSeleccionado.nombre_completo}</p>}
-          </div>
-          {resumenPrecio && (
-            <div className="text-right">
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Precio</p>
-              <p className="text-base font-bold" style={{ color }}>{resumenPrecio}</p>
-            </div>
-          )}
-        </div>
+      <div className="fixed bottom-0 left-60 right-0 bg-white border-t px-5 py-4" style={{ borderColor: '#e1f5fe' }}>
         <button
           onClick={handleSolicitar}
           disabled={!puedeEnviar}
           className="w-full py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40"
           style={{ backgroundColor: color }}>
-          {enviando ? <span className="animate-spin">⏳</span> : '📅'} Solicitar Reserva
+          {enviando ? <span className="animate-spin">⏳</span> : (cambiarId ? '🔄' : '📅')} {cambiarId ? 'Solicitar Cambio de Horario' : 'Solicitar Reserva'}
         </button>
-        <div className="flex justify-between text-xs text-gray-400">
-          <button onClick={() => router.replace('/cliente')}>‹ volver</button>
-          <button onClick={handleLogout} className="text-red-400">salir</button>
-        </div>
       </div>
     </div>
   );

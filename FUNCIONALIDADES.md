@@ -1,4 +1,4 @@
-# MENSANA - Documentación de Funcionalidades
+# TUSTURNOS - Documentación de Funcionalidades
 
 > Documento de referencia para tests Jest (GitHub Actions) y desarrollo de la versión web.
 
@@ -57,137 +57,9 @@ Supabase (PostgreSQL + RLS)
 ---
 
 ## Base de datos (Supabase)
-
-### Tablas principales
-
-#### `usuarios`
-| Columna | Tipo | Notas |
-|---------|------|-------|
-| id | uuid PK | |
-| auth_user_id | uuid FK → auth.users | puede ser null (clientes sin acceso) |
-| nombre_completo | text | |
-| email | text | |
-| telefono | text | |
-| avatar_url | text | |
-| activo | boolean | soft delete |
-
-#### `usuario_empresa`
-| Columna | Tipo | Notas |
-|---------|------|-------|
-| id | uuid PK | Este es el `usr_empresa_id` |
-| usuario_id | uuid FK | |
-| empresa_id | uuid FK | |
-| rol_id | uuid FK | |
-
-> ⚠️ NO tiene columna `activo`. El estado activo viene de `usuarios.activo`.
-
-#### `empresas`
-| Columna | Tipo | Notas |
-|---------|------|-------|
-| id | uuid PK | |
-| nombre | text | |
-| logo_url | text | |
-| color_primary | text | hex |
-| color_secondary | text | hex |
-| color_background | text | hex |
-
-#### `roles`
-| Columna | Tipo | Valores posibles |
-|---------|------|-----------------|
-| id | uuid PK | |
-| nombre | text | `superadmin`, `admin`, `profesional`, `cliente` |
-
-#### `reservas`
-| Columna | Tipo | Notas |
-|---------|------|-------|
-| id | uuid PK | |
-| empresa_id | uuid FK | |
-| profesional_id | uuid FK → usuarios.id | |
-| cliente_id | uuid FK → usuarios.id | |
-| autor_id | uuid FK → usuarios.id | quien la creó |
-| servicio_id | uuid FK | nullable |
-| fecha | date | YYYY-MM-DD |
-| hora_inicio | time | HH:MM |
-| estado | text | ver estados abajo |
-| precio_total | numeric | |
-| monto_seña | numeric | |
-| seña_pagada | boolean | |
-| pagado | boolean | |
-| metodo_pago | text | efectivo, tarjeta, transferencia, etc. |
-| recordatorio_enviado | boolean | |
-| created_at | timestamptz | |
-
-**Estados de reserva:**
 ```
-pendiente → confirmada → completada
-          ↘ rechazada
-cancelada (cliente puede cancelar hasta con 2 hs de anticipacion)
-
+Buscar en carpeta docs/schema_mensana.md
 ```
-**Estados de reserva - roles :**
-```
-pendiente → confirmada → completada
-          ↘ rechazada
-cancelada (cliente puede cancelar hasta con 2 hs de anticipacion)
-
-un profesional puede crear una reserva para cualquier profesional pero no puede confirmarlo a no ser que sea él el profesional que lo crea. Esta reserva va a pendiente si no es el profesional de la reserva
-
-cual quiero profesional puede cobrar las reservas, pues las ve desde el mismo lugar que es agenda diaria
-
-```
-
-#### `servicios`
-| Columna | Tipo | Notas |
-|---------|------|-------|
-| id | uuid PK | |
-| empresa_id | uuid FK | |
-| nombre | text | |
-| descripcion | text | |
-| duracion_minutos | integer | |
-| precio | numeric | |
-| activo | boolean | |
-
-#### `horarios_atencion`
-| Columna | Tipo | Notas |
-|---------|------|-------|
-| id | uuid PK | |
-| profesional_id | uuid FK | |
-| dia_semana | integer | 0=Domingo ... 6=Sábado |
-| hora_inicio | text | HH:MM |
-| hora_fin | text | HH:MM |
-| activo | boolean | |
-
-#### `fichas`
-| Columna | Tipo | Notas |
-|---------|------|-------|
-| id | uuid PK | |
-| usr_empresa_id | uuid FK → usuario_empresa.id | ⚠️ NO es usuario_id |
-| profesional_id | uuid FK | |
-| reserva_id | uuid FK | nullable |
-| nota | text | |
-| fecha | date | |
-
-#### `profesional_servicio` (tabla de unión)
-| Columna | Tipo |
-|---------|------|
-| profesional_id | uuid FK |
-| servicio_id | uuid FK |
-
-### Vistas
-
-#### `v_sesion_contexto`
-- Filtrada por `auth.uid()` (RLS automático)
-- Columna de rol: **`rol_codigo`** (NO `rol`)
-- Devuelve: `usuario_id`, `auth_user_id`, `nombre_completo`, `email`, `rol_codigo`, `empresa_id`, `empresa_nombre`, colores, `logo_url`
-- Usada por AuthContext
-
-#### `v_empresa_branding`
-- Acceso público
-- Devuelve: `id`, `nombre`, `color_primary`, `color_secondary`, `color_background`, `logo_url`
-- Usada por BusinessContext
-
----
-
 ## Sistema de roles y permisos
 
 ### Jerarquía
@@ -317,7 +189,7 @@ En el controller:
 ```
 
 **Importante:**
-- La ficha se vincula a `usr_empresa_id` (id de `usuario_empresa`), no a `usuario_id`.
+- La ficha se vincula a `empresa_id`, `sucursal_id`, `usuario_id`.
 - Guardar solo la nota NO marca la reserva como pagada. El pago requiere un monto numérico explícito.
 - **Cada reserva es una entidad independiente.** El estado de pago (`pagado`, `precio_total`, `metodo_pago`) pertenece exclusivamente a esa reserva. Pagar una reserva de un cliente no modifica ninguna otra reserva del mismo cliente. Esto evita el bug donde dos reservas del mismo cliente aparecían ambas como pagadas cuando solo se había cobrado una.
 

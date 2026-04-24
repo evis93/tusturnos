@@ -1,5 +1,5 @@
 import { supabase, supabaseAdmin } from '../config/supabase';
-import { requirePermission, requireEmpresa } from '../utils/permissions';
+import { requireEmpresa, requirePermission } from '../utils/permissions';
 
 export class ProfesionalController {
   // Obtener todos los profesionales activos (scoped por empresa)
@@ -22,7 +22,7 @@ export class ProfesionalController {
         .from('usuario_empresa')
         .select(`
           usuario_id,
-          roles!inner(nombre),
+          roles!inner(rol),
           usuarios!inner(
             id,
             nombre_completo,
@@ -31,7 +31,7 @@ export class ProfesionalController {
             avatar_url
           )
         `)
-        .in('roles.nombre', ['profesional', 'admin']);
+        .in('roles.rol', ['profesional', 'admin']);
 
       if (empresaFilter) {
         query = query.eq('empresa_id', empresaFilter);
@@ -45,7 +45,7 @@ export class ProfesionalController {
       const profMap = new Map();
       (data || []).forEach(item => {
         const id = item.usuarios.id;
-        const rol = item.roles.nombre;
+        const rol = item.roles.rol;
         const existing = profMap.get(id);
         if (!existing || (ROL_PRIORIDAD[rol] || 0) > (ROL_PRIORIDAD[existing.rol] || 0)) {
           profMap.set(id, {
@@ -171,12 +171,11 @@ export class ProfesionalController {
 
       if (usuarioExistente) {
         usuarioId = usuarioExistente.id;
-        // Vincular auth_user_id si estaba vacío
+        // Actualizar nombre y vincular auth_user_id (el trigger puede haber creado la fila con nombre NULL)
         await supabase
           .from('usuarios')
-          .update({ auth_user_id: authUserId })
-          .eq('id', usuarioId)
-          .is('auth_user_id', null);
+          .update({ auth_user_id: authUserId, nombre_completo: nombre })
+          .eq('id', usuarioId);
       } else {
         const { data: usuarioData, error: usuarioError } = await supabase
           .from('usuarios')
@@ -202,7 +201,7 @@ export class ProfesionalController {
       const { data: rolData, error: rolError } = await supabase
         .from('roles')
         .select('id')
-        .eq('nombre', rolCodigo)
+        .eq('rol', rolCodigo)
         .single();
 
       if (rolError || !rolData) {
@@ -214,13 +213,13 @@ export class ProfesionalController {
 
       const { data: ueExistente } = await supabase
         .from('usuario_empresa')
-        .select('id, roles(nombre)')
+        .select('id, roles(rol)')
         .eq('usuario_id', usuarioId)
         .eq('empresa_id', profile.empresaId)
         .maybeSingle();
 
       if (ueExistente) {
-        const rolActual = ueExistente.roles?.nombre;
+        const rolActual = ueExistente.roles?.rol;
         const prioridadActual = ROL_PRIORIDAD[rolActual] || 0;
         const prioridadNueva = ROL_PRIORIDAD[rolCodigo] || 0;
 
@@ -319,13 +318,13 @@ export class ProfesionalController {
 
       // 3. Actualizar datos del usuario
       const emailActual = usuarioActual?.email || '';
+      const emailNuevo = email?.trim().toLowerCase();
+      const updatePayload = { nombre_completo: nombre_completo };
+      if (emailNuevo && emailNuevo !== emailActual) updatePayload.email = emailNuevo;
+      if (telefono !== undefined && telefono !== null) updatePayload.telefono = telefono || null;
       const { error: usuarioError } = await supabase
         .from('usuarios')
-        .update({
-          nombre_completo: nombre_completo,
-          email: email?.trim().toLowerCase() || emailActual,
-          telefono: telefono,
-        })
+        .update(updatePayload)
         .eq('id', id);
 
       if (usuarioError) throw usuarioError;
@@ -335,7 +334,7 @@ export class ProfesionalController {
       const { data: rolData } = await supabase
         .from('roles')
         .select('id')
-        .eq('nombre', rolCodigo)
+        .eq('rol', rolCodigo)
         .single();
 
       if (rolData) {

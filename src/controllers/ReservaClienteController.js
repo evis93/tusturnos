@@ -24,11 +24,11 @@ export class ReservaClienteController {
         .from('usuario_empresa')
         .select(`
           usuario_id,
-          roles!inner(nombre),
+          roles!inner(rol),
           usuarios!inner(id, nombre_completo, avatar_url)
         `)
         .eq('empresa_id', empresaId)
-        .in('roles.nombre', ['profesional', 'admin']);
+        .in('roles.rol', ['profesional', 'admin']);
 
       if (error) throw error;
 
@@ -37,7 +37,7 @@ export class ReservaClienteController {
       const profMap = new Map();
       (data || []).forEach(item => {
         const id = item.usuarios.id;
-        const rol = item.roles.nombre;
+        const rol = item.roles.rol;
         const existing = profMap.get(id);
         if (!existing || (ROL_PRIORIDAD[rol] || 0) > (ROL_PRIORIDAD[existing.rol] || 0)) {
           profMap.set(id, {
@@ -77,6 +77,12 @@ export class ReservaClienteController {
     }
   }
 
+  static calcularSeña(precioTotal, porcentaje = 0.3) {
+    const monto = Number(precioTotal);
+    if (!Number.isFinite(monto) || monto <= 0) return null;
+    return Math.round(monto * porcentaje * 100) / 100;
+  }
+
   // Horarios del profesional para un día de semana (0=Dom, 1=Lun … 6=Sab)
   static async obtenerHorariosDelDia(profesionalId, diaSemana) {
     try {
@@ -95,20 +101,41 @@ export class ReservaClienteController {
     }
   }
 
-  // Slots ya ocupados para un profesional en una fecha (hora_inicio como 'HH:MM')
-  static async obtenerSlotsOcupados(profesionalId, fecha) {
+  // Slots ya ocupados para un profesional en una fecha (devuelve array 'HH:MM').
+  // Si se pasa sucursalId, también incluye los slots ocupados por cualquier profesional en esa sucursal.
+  static async obtenerSlotsOcupados(profesionalId, fecha, sucursalId = null) {
     try {
-      const { data, error } = await supabase
-        .from('reservas')
-        .select('hora_inicio')
-        .eq('profesional_id', profesionalId)
-        .eq('fecha', fecha)
-        .neq('estado', 'cancelada');
+      const estadosCancelados = '("cancelada","rechazada","CANCELADA","RECHAZADA","CANCELADO","RECHAZADO")';
 
-      if (error) throw error;
+      const queries = [
+        supabase
+          .from('reservas')
+          .select('hora_inicio')
+          .eq('profesional_id', profesionalId)
+          .eq('fecha', fecha)
+          .not('estado', 'in', estadosCancelados),
+      ];
 
-      // Normalizar a 'HH:MM' para comparar con los slots generados
-      const ocupados = (data || []).map(r => r.hora_inicio?.substring(0, 5));
+      if (sucursalId) {
+        queries.push(
+          supabase
+            .from('reservas')
+            .select('hora_inicio')
+            .eq('sucursal_id', sucursalId)
+            .eq('fecha', fecha)
+            .not('estado', 'in', estadosCancelados)
+        );
+      }
+
+      const results = await Promise.all(queries);
+      for (const { error } of results) { if (error) throw error; }
+
+      const ocupados = [...new Set(
+        results.flatMap(({ data }) =>
+          (data || []).map(r => r.hora_inicio?.substring(11, 16)).filter(Boolean)
+        )
+      )];
+
       return { success: true, data: ocupados };
     } catch (error) {
       console.error('[ReservaClienteController.obtenerSlotsOcupados]', error);
@@ -137,26 +164,45 @@ export class ReservaClienteController {
     return { manana, tarde, todos: disponibles };
   }
 
-  // Crea la solicitud de turno con estado 'pendiente'
-  static async solicitarReserva({ empresaId, profesionalId, clienteId, servicioId, fecha, horaInicio }) {
+  // Cancela una reserva (DELETE). Solo puede hacerlo el cliente dueño de la reserva.
+  static async cancelarReserva(reservaId, clienteId) {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('reservas')
-        .insert([{
-          empresa_id: empresaId,
-          profesional_id: profesionalId,
-          cliente_id: clienteId,
-          autor_id: clienteId,
-          servicio_id: servicioId || null,
-          fecha,
-          hora_inicio: `${horaInicio}:00`,
-          estado: 'pendiente',
-        }])
-        .select()
-        .single();
-
+        .delete()
+        .eq('id', reservaId)
+        .eq('cliente_id', clienteId);
       if (error) throw error;
-      return { success: true, data };
+      return { success: true };
+    } catch (error) {
+      console.error('[ReservaClienteController.cancelarReserva]', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Crea la solicitud de turno con estado 'PENDIENTE' vía API (service role)
+  static async solicitarReserva({ empresaId, profesionalId, clienteId, servicioId, sucursalId, fecha, horaInicio, reservaOrigenId }) {
+    try {
+      // Combinar fecha + hora en string local (hora_inicio es timestamp without time zone)
+      const fechaHoraInicio = `${fecha}T${horaInicio}:00`;
+
+      const res = await fetch('/api/reservas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresaId,
+          profesionalId,
+          clienteId,
+          servicioId: servicioId || null,
+          sucursalId: sucursalId || null,
+          fechaHoraInicio,
+          reservaOrigenId: reservaOrigenId || null,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) return { success: false, error: json.error || 'Error al crear reserva' };
+      return { success: true, data: json.data };
     } catch (error) {
       console.error('[ReservaClienteController.solicitarReserva]', error);
       return { success: false, error: error.message };

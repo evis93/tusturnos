@@ -51,7 +51,7 @@ export default function RecuperarContrasenaPage() {
         {/* Logo */}
         <div className="mb-10">
           <h1 className="text-2xl font-bold tracking-tight lowercase" style={{ color: colors.primary }}>
-            Tus Turnos
+            mensana
           </h1>
         </div>
 

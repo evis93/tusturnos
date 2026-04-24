@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       const { data: rolData } = await sb
         .from('roles')
         .select('id')
-        .eq('nombre', 'cliente')
+        .eq('rol', 'cliente')
         .maybeSingle();
 
       if (rolData) {

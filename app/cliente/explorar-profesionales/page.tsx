@@ -1,138 +1,291 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { supabase } from '@/src/config/supabase';
-import { MapPin, Search, Loader2 } from 'lucide-react';
+import {
+  Check, ChevronRight, PlusCircle,
+  Home, Briefcase, User, Search, Loader2, MapPin,
+} from 'lucide-react';
+
+function parseCoords(location: any): [number, number] | null {
+  if (!location) return null;
+  try {
+    const geo = typeof location === 'string' ? JSON.parse(location) : location;
+    if (geo?.type === 'Point' && Array.isArray(geo.coordinates)) {
+      return [geo.coordinates[1], geo.coordinates[0]]; // [lat, lon]
+    }
+  } catch {}
+  return null;
+}
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistancia(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  return `${km.toFixed(1)} km`;
+}
 
 export default function ExplorarProfesionalesPage() {
+  const router = useRouter();
+  const { profile, setActiveEmpresa } = useAuth();
   const { colors } = useTheme();
 
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uniendose, setUniendose] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
-  const [locationError, setLocationError] = useState('');
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          const { latitude, longitude } = pos.coords;
-          setUserLocation({ lat: latitude, lng: longitude });
-          cargarCercanas(latitude, longitude);
-        },
-        () => {
-          setLocationError('No se pudo obtener tu ubicación. Mostrando todos los centros.');
-          cargarTodas();
-        }
-      );
-    } else {
-      setLocationError('Tu navegador no soporta geolocalización.');
-      cargarTodas();
-    }
-  }, []);
+  const nombreCorto = profile?.nombre_completo?.split(' ')[0]?.toLowerCase() || '';
 
-  const cargarCercanas = async (lat: number, lng: number) => {
+  const cargar = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc('buscar_empresas_cercanas', {
-      p_lat: lat, p_lng: lng, p_radius_meters: 5000,
-    });
-    if (!error && data) {
-      setEmpresas(data);
-    } else {
-      cargarTodas();
-      return;
-    }
-    setLoading(false);
-  };
 
-  const cargarTodas = async () => {
-    setLoading(true);
+    // Ubicación del usuario
+    let userCoords: [number, number] | null = null;
+    if (profile?.usuarioId) {
+      const { data: userData } = await supabase
+        .from('usuarios')
+        .select('location')
+        .eq('id', profile.usuarioId)
+        .single();
+      userCoords = parseCoords(userData?.location);
+    }
+
+    // Empresas tusturnos (producto = 'tusturnos' o sin producto definido)
     const { data } = await supabase
       .from('empresas')
-      .select('id, nombre, descripcion, logo_url, direccion, color_primary')
-      .eq('activo', true)
-      .order('nombre');
-    if (data) setEmpresas(data);
-    setLoading(false);
-  };
+      .select('id, nombre, descripcion, logo_url, color_primary, color_secondary, color_background, location')
+      .eq('activa', true)
+      .or('producto.eq.tusturnos,producto.is.null');
 
-  const empresasFiltradas = empresas.filter(e =>
+    if (data) {
+      const conDistancia = data.map(e => {
+        const eCoords = parseCoords(e.location);
+        const distancia = userCoords && eCoords
+          ? haversineKm(userCoords[0], userCoords[1], eCoords[0], eCoords[1])
+          : null;
+        return { ...e, distancia };
+      });
+
+      conDistancia.sort((a, b) => {
+        if (a.distancia === null && b.distancia === null)
+          return (a.nombre || '').localeCompare(b.nombre || '');
+        if (a.distancia === null) return 1;
+        if (b.distancia === null) return -1;
+        return a.distancia - b.distancia;
+      });
+
+      setEmpresas(conDistancia);
+    }
+    setLoading(false);
+  }, [profile?.usuarioId]);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const filtradas = empresas.filter(e =>
     e.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
     e.descripcion?.toLowerCase().includes(busqueda.toLowerCase())
   );
 
+  const handleSeleccionar = async (empresa: any) => {
+    if (!profile?.usuarioId || uniendose) return;
+    setUniendose(empresa.id);
+    await fetch('/api/cliente/unirse-empresa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuarioId: profile.usuarioId, empresaId: empresa.id }),
+    });
+    setActiveEmpresa({
+      empresaId: empresa.id,
+      empresaNombre: empresa.nombre,
+      rol: 'cliente',
+      colorPrimario: empresa.color_primary,
+      colorSecundario: empresa.color_secondary,
+      colorBackground: empresa.color_background,
+      logoUrl: empresa.logo_url,
+    });
+    router.push('/cliente/reservar');
+  };
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-1" style={{ color: colors.text }}>Explorar Profesionales</h1>
+    <div
+      className="min-h-screen flex flex-col items-center px-6 py-12 pb-28"
+      style={{ backgroundColor: colors.background }}
+    >
+      {/* Header */}
+      <header className="w-full max-w-md mb-10 text-center">
+        <h1 className="text-2xl font-bold tracking-tight lowercase mb-2" style={{ color: colors.secondary }}>
+          {profile?.empresaNombre?.toLowerCase() || 'mensana'}
+        </h1>
+        <div className="h-1 w-8 rounded-full mx-auto" style={{ backgroundColor: colors.primaryFaded }} />
+      </header>
 
-      {locationError && (
-        <p className="text-sm mb-3" style={{ color: colors.warning }}>{locationError}</p>
-      )}
-
-      {/* Búsqueda */}
-      <div className="relative mb-6">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          value={busqueda}
-          onChange={e => setBusqueda(e.target.value)}
-          placeholder="Buscar centros o profesionales..."
-          className="w-full pl-9 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          style={{ borderColor: colors.border }}
-        />
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 size={28} className="animate-spin" style={{ color: colors.primary }} />
+      <main className="w-full max-w-md space-y-7">
+        {/* Saludo */}
+        <div className="text-center space-y-1.5">
+          <h2 className="text-2xl font-semibold leading-tight tracking-tight lowercase" style={{ color: colors.text }}>
+            {nombreCorto ? `hola ${nombreCorto}, ` : ''}¿a qué centro deseas ir?
+          </h2>
+          <p className="text-sm font-normal lowercase tracking-wide" style={{ color: colors.textMuted }}>
+            seleccioná el espacio donde querés reservar tu turno
+          </p>
         </div>
-      ) : empresasFiltradas.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-4xl mb-3">🔍</p>
-          <p style={{ color: colors.textSecondary }}>No se encontraron centros</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {empresasFiltradas.map(e => (
-            <div
-              key={e.id}
-              className="bg-white rounded-2xl border overflow-hidden hover:shadow-md transition cursor-pointer"
-              style={{ borderColor: colors.border }}
-            >
-              {/* Banner con color de empresa */}
-              <div
-                className="h-24 flex items-center justify-center"
-                style={{ background: `linear-gradient(135deg, ${e.color_primary || colors.primary}, ${colors.secondary})` }}
-              >
-                {e.logo_url ? (
-                  <img src={e.logo_url} alt={e.nombre} className="h-12 w-12 rounded-full object-cover border-2 border-white" />
-                ) : (
-                  <div className="h-12 w-12 rounded-full bg-white/30 flex items-center justify-center text-white text-xl font-bold">
-                    {e.nombre?.charAt(0)}
-                  </div>
-                )}
-              </div>
 
-              <div className="p-4">
-                <p className="font-semibold" style={{ color: colors.text }}>{e.nombre}</p>
-                {e.descripcion && (
-                  <p className="text-sm mt-1 line-clamp-2" style={{ color: colors.textSecondary }}>{e.descripcion}</p>
-                )}
-                {(e.distancia_metros || e.direccion) && (
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <MapPin size={12} style={{ color: colors.primary }} />
-                    <span className="text-xs" style={{ color: colors.textSecondary }}>
-                      {e.distancia_metros ? `${(e.distancia_metros / 1000).toFixed(1)} km` : e.direccion}
-                    </span>
-                  </div>
-                )}
-              </div>
+        {/* Buscador */}
+        <div className="relative">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: colors.textMuted }} />
+          <input
+            type="text"
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="buscar centro..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-white border lowercase placeholder:lowercase focus:outline-none focus:ring-2"
+            style={{ borderColor: colors.border, color: colors.text, fontFamily: 'inherit' }}
+          />
+        </div>
+
+        {/* Lista */}
+        <div className="space-y-3">
+          {loading ? (
+            <div className="flex justify-center py-14">
+              <Loader2 size={26} className="animate-spin" style={{ color: colors.primary }} />
             </div>
-          ))}
+          ) : filtradas.length === 0 ? (
+            <div className="text-center py-14">
+              <p className="text-4xl mb-3">🔍</p>
+              <p className="text-sm lowercase" style={{ color: colors.textMuted }}>no se encontraron centros</p>
+            </div>
+          ) : (
+            filtradas.map((empresa) => {
+              const esActual = empresa.id === profile?.empresaId;
+              const ePrimary = empresa.color_primary || colors.primary;
+              const eSecondary = empresa.color_secondary || colors.textSecondary;
+              const eBg = empresa.color_background || '#ffffff';
+              return (
+                <button
+                  key={empresa.id}
+                  onClick={() => handleSeleccionar(empresa)}
+                  disabled={!!uniendose}
+                  className="w-full group relative p-5 rounded-xl flex items-center gap-5 text-left transition-all duration-200 overflow-hidden disabled:opacity-60"
+                  style={{
+                    backgroundColor: eBg,
+                    borderLeft: `4px solid ${ePrimary}`,
+                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.06), 0 8px 10px -6px rgba(0,0,0,0.03)',
+                  }}
+                >
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    <div
+                      className="w-16 h-16 rounded-full overflow-hidden border-2 flex items-center justify-center"
+                      style={{ borderColor: ePrimary, backgroundColor: `${ePrimary}18` }}
+                    >
+                      {empresa.logo_url ? (
+                        <img src={empresa.logo_url} alt={empresa.nombre} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-2xl font-bold lowercase" style={{ color: ePrimary }}>
+                          {empresa.nombre?.charAt(0)}
+                        </span>
+                      )}
+                    </div>
+                    {esActual && (
+                      <div
+                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center"
+                        style={{ backgroundColor: ePrimary }}
+                      >
+                        <Check size={10} color="white" strokeWidth={3} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 overflow-hidden">
+                    <h3 className="font-semibold text-lg leading-tight lowercase truncate" style={{ color: colors.text }}>
+                      {empresa.nombre?.toLowerCase()}
+                    </h3>
+                    {empresa.descripcion && (
+                      <p className="text-sm lowercase mt-0.5 truncate" style={{ color: colors.textMuted }}>
+                        {empresa.descripcion.toLowerCase()}
+                      </p>
+                    )}
+                    {empresa.distancia !== null && (
+                      <p className="flex items-center gap-1 text-xs lowercase mt-1" style={{ color: eSecondary }}>
+                        <MapPin size={11} />
+                        {formatDistancia(empresa.distancia)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Chevron / Loader */}
+                  {uniendose === empresa.id
+                    ? <Loader2 size={20} className="shrink-0 animate-spin" style={{ color: ePrimary }} />
+                    : <ChevronRight size={20} className="shrink-0" style={{ color: ePrimary }} />
+                  }
+                </button>
+              );
+            })
+          )}
+
+          {/* Nota */}
+          {!loading && (
+            <p className="text-xs text-center lowercase px-2" style={{ color: colors.textMuted }}>
+              si vas a un centro o profesional que no tenés en tus turnos envianos sus datos
+            </p>
+          )}
+
+          {/* Vincular otro centro */}
+          {!loading && (
+            <button
+              className="w-full p-5 rounded-xl border-2 border-dashed flex items-center justify-center gap-2.5 transition-all duration-200"
+              style={{ borderColor: colors.borderLight }}
+            >
+              <PlusCircle size={18} style={{ color: colors.primaryLight }} />
+              <span className="font-medium text-sm lowercase" style={{ color: colors.textMuted }}>vincular otro centro</span>
+            </button>
+          )}
         </div>
-      )}
+
+        {/* Footer */}
+        <footer className="pt-8 text-center">
+          <button
+            onClick={() => router.push('/cliente')}
+            className="inline-block text-sm font-semibold tracking-wide lowercase hover:underline underline-offset-4 transition-all"
+            style={{ color: colors.primary }}
+          >
+          </button>
+        </footer>
+      </main>
+
+      {/* Bottom nav flotante */}
+      <nav
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full flex items-center gap-8 md:hidden"
+        style={{
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.5)',
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.08)',
+        }}
+      >
+        <button onClick={() => router.push('/cliente')}>
+          <Home size={22} style={{ color: colors.textSecondary }} />
+        </button>
+        <button>
+          <Briefcase size={22} style={{ color: colors.primary }} />
+        </button>
+        <button onClick={() => router.push('/cliente/perfil')}>
+          <User size={22} style={{ color: colors.textSecondary }} />
+        </button>
+      </nav>
     </div>
   );
 }

@@ -5,6 +5,6 @@
  * Las páginas públicas de empresa (/tusturnos/[slug]/*) se renderizan
  * limpias sin ningún wrapper de dashboard.
  */
-export default function TusTurnosLayout({ children }: { children: React.ReactNode }) {
+export default function TusturnosLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }

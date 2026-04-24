@@ -76,7 +76,7 @@ export default function EmpresaRegisterPage() {
       <div className="flex-1 flex flex-col justify-center px-6 py-8 max-w-md mx-auto w-full">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-1">crear cuenta</h1>
-          <p className="text-sm text-gray-500">registrate en {empresaNombre || 'Tus Turnos'}</p>
+          <p className="text-sm text-gray-500">registrate en {empresaNombre || 'mensana'}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '@/src/context/ThemeContext';
 import { ReservaController } from '@/src/controllers/ReservaController';
 import { ConsultanteController } from '@/src/controllers/ConsultanteController';
 import { DatabaseService } from '@/src/services/database.service';
 import { X, Search, Loader2 } from 'lucide-react';
+import TelefonoInput from '@/src/components/ui/TelefonoInput';
 
 const HORARIOS_DISPONIBLES = Array.from({ length: 27 }, (_, i) => {
   const h = Math.floor(i / 2) + 8;
@@ -24,9 +25,15 @@ interface Props {
   reservaEditar?: any | null;
   profesionales: any[];
   profile: any;
+  /** Si se pasa, pre-rellena el cliente y bloquea la búsqueda (uso desde la vista de cliente) */
+  clientePreset?: { id: string | null; nombre: string; email: string; telefono?: string };
+  /** Profesional pre-seleccionado (uso desde la vista de cliente) */
+  profesionalIdInicial?: string;
+  /** Reserva original al cambiar de horario: pre-rellena cliente/profesional/servicio y vincula la nueva */
+  reservaOrigen?: any | null;
 }
 
-export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCreado, fecha, horaInicial, reservaEditar, profesionales, profile }: Props) {
+export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCreado, fecha, horaInicial, reservaEditar, profesionales, profile, clientePreset, profesionalIdInicial, reservaOrigen }: Props) {
   const { colors } = useTheme();
 
   const [consultanteSearch, setConsultanteSearch] = useState('');
@@ -34,6 +41,8 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
   const [isSearching, setIsSearching] = useState(false);
   const [tiposSesion, setTiposSesion] = useState<any[]>([]);
   const [guardando, setGuardando] = useState(false);
+  // Precio base del servicio seleccionado (solo se actualiza al cambiar el servicio)
+  const [precioBase, setPrecioBase] = useState('');
   const searchTimeout = useRef<any>(null);
 
   const [form, setForm] = useState({
@@ -44,9 +53,30 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
     hora_inicio: horaInicial || '',
     profesional_id: profile?.profesionalId || '',
     tipo_sesion_id: null as string | null,
+    tipo_sesion_nombre: '' as string,
     precio_total: '',
     monto_seña: '',
+    descuento_pct: '',
+    descuento_fijo: '',
   });
+
+  // Auto-computa precio_total cuando cambia precioBase o los descuentos
+  useEffect(() => {
+    const base = parseFloat(precioBase);
+    if (!base) return;
+    const pct = parseFloat(form.descuento_pct) || 0;
+    const fijo = parseFloat(form.descuento_fijo) || 0;
+    const descuento = Math.round(base * pct / 100) + fijo;
+    setForm(prev => ({ ...prev, precio_total: Math.max(0, base - descuento).toString() }));
+  }, [precioBase, form.descuento_pct, form.descuento_fijo]);
+
+  // Monto que queda por cobrar en sesión (precio − seña)
+  const aCobrarenSesion = useMemo(() => {
+    const precio = parseFloat(form.precio_total) || 0;
+    const seña = parseFloat(form.monto_seña) || 0;
+    if (!precio || !seña) return null;
+    return Math.max(0, precio - seña);
+  }, [form.precio_total, form.monto_seña]);
 
   useEffect(() => {
     if (open) {
@@ -59,23 +89,48 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
           hora_inicio: reservaEditar.hora_inicio?.substring(0, 5) || '',
           profesional_id: reservaEditar.profesional_id || profile?.profesionalId || '',
           tipo_sesion_id: reservaEditar.servicio_id || null,
+          tipo_sesion_nombre: reservaEditar.servicio_nombre || reservaEditar.servicio || '',
           precio_total: reservaEditar.precio_total?.toString() || '',
           monto_seña: reservaEditar.monto_seña?.toString() || '',
+          descuento_pct: '',
+          descuento_fijo: '',
         });
         setConsultanteSearch(reservaEditar.consultante_nombre || '');
+        setPrecioBase('');
+      } else if (reservaOrigen) {
+        // Modo cambio de horario: pre-rellena datos del cliente/profesional/servicio, hora en blanco
+        setForm({
+          consultante_id: reservaOrigen.consultante_id || reservaOrigen.cliente_id,
+          consultante_nombre: reservaOrigen.consultante_nombre || '',
+          consultante_email: reservaOrigen.consultante_email || '',
+          consultante_telefono: reservaOrigen.consultante_telefono || '',
+          hora_inicio: '',
+          profesional_id: reservaOrigen.profesional_id || profile?.profesionalId || '',
+          tipo_sesion_id: reservaOrigen.servicio_id || null,
+          tipo_sesion_nombre: reservaOrigen.servicio_nombre || reservaOrigen.servicio || '',
+          precio_total: reservaOrigen.precio_total?.toString() || '',
+          monto_seña: '',
+          descuento_pct: '',
+          descuento_fijo: '',
+        });
+        setConsultanteSearch(reservaOrigen.consultante_nombre || '');
+        setPrecioBase('');
       } else {
         setForm({
-          consultante_id: null,
-          consultante_nombre: '',
-          consultante_email: '',
-          consultante_telefono: '',
+          consultante_id: clientePreset?.id ?? null,
+          consultante_nombre: clientePreset?.nombre ?? '',
+          consultante_email: clientePreset?.email ?? '',
+          consultante_telefono: clientePreset?.telefono ?? '',
           hora_inicio: horaInicial || '',
-          profesional_id: profile?.profesionalId || '',
+          profesional_id: profesionalIdInicial || profile?.profesionalId || '',
           tipo_sesion_id: null,
           precio_total: '',
           monto_seña: '',
+          descuento_pct: '',
+          descuento_fijo: '',
         });
-        setConsultanteSearch('');
+        setConsultanteSearch(clientePreset?.nombre ?? '');
+        setPrecioBase('');
       }
     }
   }, [open, reservaEditar, horaInicial]);
@@ -110,16 +165,29 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
 
     let consultanteId = form.consultante_id;
     if (!consultanteId && form.consultante_nombre) {
-      const r = await ConsultanteController.crearConsultante({
-        nombre_completo: form.consultante_nombre,
-        email: form.consultante_email,
-        telefono: form.consultante_telefono,
-      }, profile);
-      if (r.success) consultanteId = (r as any).data?.id;
+      if (form.consultante_email && profile?.empresaId) {
+        const res = await fetch('/api/admin/clientes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: form.consultante_email,
+            nombre: form.consultante_nombre,
+            telefono: form.consultante_telefono || undefined,
+            empresaId: profile.empresaId,
+          }),
+        });
+        const json = await res.json();
+        if (json.usuarioId) consultanteId = json.usuarioId;
+      } else {
+        const r = await ConsultanteController.crearConsultante({
+          nombre_completo: form.consultante_nombre,
+          email: form.consultante_email,
+          telefono: form.consultante_telefono,
+        }, profile);
+        if (r.success) consultanteId = (r as any).data?.id;
+      }
     }
 
-    // Si la reserva es para un profesional distinto al usuario logueado → 'pendiente'
-    // para que pase por el gestor de reservas y el profesional confirme.
     const esPropioTurno = form.profesional_id === profile?.profesionalId;
     const estadoNuevo = reservaEditar ? reservaEditar.estado : (esPropioTurno ? 'confirmada' : 'pendiente');
 
@@ -129,9 +197,11 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
       fecha,
       hora_inicio: form.hora_inicio,
       servicio_id: form.tipo_sesion_id,
+      servicio_nombre: form.tipo_sesion_nombre || null,
       precio_total: form.precio_total ? parseFloat(form.precio_total) : null,
       monto_seña: form.monto_seña ? parseFloat(form.monto_seña) : null,
       estado: estadoNuevo,
+      reserva_origen_id: reservaOrigen?.id || null,
     };
 
     const result = reservaEditar
@@ -140,15 +210,29 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
 
     setGuardando(false);
     if (result.success) {
-      // Si se creó un cliente nuevo, notificar al padre para ofrecer acceso a la app
       const esClienteNuevo = !form.consultante_id && !!form.consultante_nombre && !!consultanteId;
       if (!reservaEditar && esClienteNuevo && onNuevoClienteCreado) {
         onNuevoClienteCreado(consultanteId, form.consultante_nombre, form.consultante_telefono);
       }
       if (!esPropioTurno && !reservaEditar) {
-        // Avisar que fue al gestor
         alert(`La reserva fue enviada al gestor de reservas para que ${profesionales.find(p => p.id === form.profesional_id)?.nombre_completo || 'el profesional'} la confirme.`);
       }
+
+      // WhatsApp al cliente si tiene teléfono
+      const tel = form.consultante_telefono?.replace(/\D/g, '');
+      if (tel && !reservaEditar) {
+        const seña = parseFloat(form.monto_seña) || 0;
+        let msg = '';
+        if (seña > 0) {
+          msg = `Hola ${form.consultante_nombre || ''}, tu turno para el ${fecha} a las ${form.hora_inicio} está registrado. Para confirmarlo necesitamos una seña de $${seña}.`;
+        } else if (esPropioTurno) {
+          msg = `Hola ${form.consultante_nombre || ''}, tu turno para el ${fecha} a las ${form.hora_inicio} está confirmado. ¡Te esperamos!`;
+        }
+        if (msg) {
+          window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+      }
+
       onSaved();
     } else {
       alert((result as any).error || 'Error al guardar');
@@ -162,7 +246,7 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
       <div className="bg-white rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold" style={{ color: colors.text }}>
-            {reservaEditar ? 'Editar Reserva' : 'Nueva Reserva'}
+            {reservaEditar ? 'Editar Reserva' : reservaOrigen ? 'Cambiar Horario' : 'Nueva Reserva'}
           </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition">
             <X size={18} style={{ color: colors.textSecondary }} />
@@ -177,55 +261,61 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
           </div>
 
           {/* Búsqueda de consultante */}
-          <div className="relative">
-            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Cliente *</label>
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={consultanteSearch}
-                onChange={e => buscarConsultante(e.target.value)}
-                placeholder="Buscar por nombre o email..."
-                className="w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ borderColor: colors.border }}
-              />
-              {isSearching && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-400" />}
+          {clientePreset ? (
+            <div className="bg-gray-50 rounded-xl px-4 py-2.5">
+              <p className="text-xs" style={{ color: colors.textSecondary }}>Cliente</p>
+              <p className="font-semibold text-sm" style={{ color: colors.text }}>{clientePreset.nombre}</p>
+              {clientePreset.email && <p className="text-xs" style={{ color: colors.textSecondary }}>{clientePreset.email}</p>}
             </div>
-            {consultantesFiltrados.length > 0 && (
-              <div className="absolute z-10 w-full bg-white border rounded-xl shadow-lg mt-1 max-h-40 overflow-y-auto" style={{ borderColor: colors.border }}>
-                {consultantesFiltrados.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => seleccionarConsultante(c)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition text-sm border-b last:border-0"
-                    style={{ borderColor: colors.borderLight, color: colors.text }}
-                  >
-                    {c.nombre_completo}
-                    {c.email && <span className="text-xs ml-2" style={{ color: colors.textSecondary }}>{c.email}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Datos del consultante si es nuevo */}
-          {!form.consultante_id && consultanteSearch && (
-            <div className="space-y-2 bg-gray-50 rounded-xl p-3">
-              <p className="text-xs font-medium" style={{ color: colors.textSecondary }}>Datos del nuevo cliente</p>
-              {[
-                { key: 'consultante_email', label: 'Email', type: 'email', placeholder: 'email@ejemplo.com' },
-                { key: 'consultante_telefono', label: 'Teléfono', type: 'tel', placeholder: '+54 11...' },
-              ].map(f => (
+          ) : (
+            <div className="relative">
+              <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Cliente *</label>
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
-                  key={f.key}
-                  type={f.type}
-                  value={(form as any)[f.key]}
-                  onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                  placeholder={f.placeholder}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="text"
+                  value={consultanteSearch}
+                  onChange={e => buscarConsultante(e.target.value)}
+                  placeholder="Buscar por nombre o email..."
+                  className="w-full pl-9 pr-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   style={{ borderColor: colors.border }}
                 />
-              ))}
+                {isSearching && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-400" />}
+              </div>
+              {consultantesFiltrados.length > 0 && (
+                <div className="absolute z-10 w-full bg-white border rounded-xl shadow-lg mt-1 max-h-40 overflow-y-auto" style={{ borderColor: colors.border }}>
+                  {consultantesFiltrados.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => seleccionarConsultante(c)}
+                      className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition text-sm border-b last:border-0"
+                      style={{ borderColor: colors.borderLight, color: colors.text }}
+                    >
+                      {c.nombre_completo}
+                      {c.email && <span className="text-xs ml-2" style={{ color: colors.textSecondary }}>{c.email}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Datos del consultante si es nuevo */}
+          {!clientePreset && !form.consultante_id && consultanteSearch && (
+            <div className="space-y-2 bg-gray-50 rounded-xl p-3">
+              <p className="text-xs font-medium" style={{ color: colors.textSecondary }}>Datos del nuevo cliente</p>
+              <input
+                type="email"
+                value={form.consultante_email}
+                onChange={e => setForm(prev => ({ ...prev, consultante_email: e.target.value }))}
+                placeholder="email@ejemplo.com"
+                className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ borderColor: colors.border }}
+              />
+              <TelefonoInput
+                value={form.consultante_telefono}
+                onChange={v => setForm(prev => ({ ...prev, consultante_telefono: v }))}
+              />
             </div>
           )}
 
@@ -243,28 +333,31 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
             </select>
           </div>
 
-          {/* Profesional */}
-          {profesionales.length > 1 && (
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Profesional</label>
-              <select
-                value={form.profesional_id}
-                onChange={e => setForm(prev => ({ ...prev, profesional_id: e.target.value }))}
-                className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ borderColor: colors.border, color: colors.text }}
-              >
-                {profesionales.map(p => <option key={p.id} value={p.id}>{p.nombre_completo}</option>)}
-              </select>
-            </div>
-          )}
+          {/* Profesional — siempre visible */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Profesional</label>
+            <select
+              value={form.profesional_id}
+              onChange={e => setForm(prev => ({ ...prev, profesional_id: e.target.value }))}
+              className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ borderColor: colors.border, color: colors.text }}
+            >
+              {profesionales.map(p => <option key={p.id} value={p.id}>{p.nombre_completo}</option>)}
+            </select>
+          </div>
 
-          {/* Tipo de sesión */}
+          {/* Tipo de sesión — auto-rellena precio */}
           {tiposSesion.length > 0 && (
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Tipo de sesión</label>
               <select
                 value={form.tipo_sesion_id || ''}
-                onChange={e => setForm(prev => ({ ...prev, tipo_sesion_id: e.target.value || null }))}
+                onChange={e => {
+                  const id = e.target.value || null;
+                  const servicio = id ? tiposSesion.find(t => t.id === id) : null;
+                  setForm(prev => ({ ...prev, tipo_sesion_id: id, tipo_sesion_nombre: servicio?.nombre || '', descuento_pct: '', descuento_fijo: '' }));
+                  setPrecioBase(servicio?.precio ? servicio.precio.toString() : '');
+                }}
                 className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={{ borderColor: colors.border, color: colors.text }}
               >
@@ -274,20 +367,7 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
             </div>
           )}
 
-          {/* Precio */}
-          <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Precio ($)</label>
-            <input
-              type="number"
-              value={form.precio_total}
-              onChange={e => setForm(prev => ({ ...prev, precio_total: e.target.value }))}
-              placeholder="2500"
-              className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              style={{ borderColor: colors.border }}
-            />
-          </div>
-
-          {/* Seña / depósito */}
+          {/* Seña / depósito — arriba de precio */}
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>
               Seña / depósito ($) <span className="font-normal text-xs" style={{ color: colors.textSecondary }}>(opcional)</span>
@@ -300,6 +380,56 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
               className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               style={{ borderColor: colors.border }}
             />
+          </div>
+
+          {/* Descuento */}
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: colors.text }}>Descuento</label>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-xs mb-1" style={{ color: colors.textSecondary }}>Porcentaje (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={form.descuento_pct}
+                  onChange={e => setForm(prev => ({ ...prev, descuento_pct: e.target.value }))}
+                  placeholder="0"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ borderColor: colors.border }}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs mb-1" style={{ color: colors.textSecondary }}>Monto fijo ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.descuento_fijo}
+                  onChange={e => setForm(prev => ({ ...prev, descuento_fijo: e.target.value }))}
+                  placeholder="0"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ borderColor: colors.border }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Precio */}
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: colors.text }}>Precio ($)</label>
+            <input
+              type="number"
+              value={form.precio_total}
+              onChange={e => setForm(prev => ({ ...prev, precio_total: e.target.value }))}
+              placeholder="0"
+              className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ borderColor: colors.border }}
+            />
+            {aCobrarenSesion !== null && (
+              <p className="text-xs mt-1.5 font-medium" style={{ color: colors.primary }}>
+                A cobrar en sesión: ${aCobrarenSesion}
+              </p>
+            )}
           </div>
 
           {/* Aviso si es para otro profesional */}
