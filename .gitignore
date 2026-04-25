@@ -60,3 +60,5 @@ nul
 .env*
 .env.local
 !.env.example
+.vercel
+.env*.local
