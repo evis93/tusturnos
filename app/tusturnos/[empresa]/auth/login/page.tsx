@@ -104,23 +104,10 @@ export default function LoginPage() {
                 <span style={{ fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.02em' }}>Tus Turnos</span>
               </div>
 
-<<<<<<<< HEAD:app/tusturnos/[empresa]/auth/login/page.tsx
-          {/* Olvidé contraseña */}
-          <div className="flex justify-center py-2">
-            <Link
-              href={`/tusturnos/${slug}/auth/recuperar-contrasena`}
-              className="text-sm font-semibold hover:underline underline-offset-4 decoration-2"
-              style={{ color: colors.primary }}
-            >
-              ¿Olvidaste tu contraseña?
-            </Link>
-          </div>
-========
               <h1 style={{ fontSize: '2.75rem', fontWeight: 700, lineHeight: 1.2, marginBottom: '1.5rem' }}>
                 Gestionando el tiempo,{' '}
                 <span style={{ opacity: 0.8 }}>perfectamente compuesto.</span>
               </h1>
->>>>>>>> desarrollo:app/mensana/[empresa]/auth/login/page.tsx
 
               <div style={{ marginTop: '3rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                 {[
@@ -165,19 +152,6 @@ export default function LoginPage() {
             </div>
           </section>
 
-<<<<<<<< HEAD:app/tusturnos/[empresa]/auth/login/page.tsx
-        </form>
-      </main>
-
-      {/* Footer */}
-      <footer className="mt-auto p-6 text-center">
-        <p className="text-xs text-gray-400">
-          ¿No tenés cuenta?{' '}
-          <Link
-            href={`/tusturnos/${slug}/auth/register`}
-            className="font-bold"
-            style={{ color: colors.primary }}
-========
           {/* ── Panel derecho: formulario ────────────────────────────────── */}
           <section style={{
             backgroundColor: C.surfaceContainerLowest,
@@ -187,7 +161,6 @@ export default function LoginPage() {
             justifyContent: 'center',
           }}
             className="md:p-16"
->>>>>>>> desarrollo:app/mensana/[empresa]/auth/login/page.tsx
           >
             {/* Header móvil */}
             <div className="mobile-header" style={{ alignItems: 'center', gap: '0.75rem', marginBottom: '3rem' }}>
