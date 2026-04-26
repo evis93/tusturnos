@@ -735,3 +735,168 @@ export async function cambiarEstadoReserva(
     return { success: false, error: e.message, code: 500 }
   }
 }
+
+/**
+ * Obtener todas las reservas (scoped por empresa y rol).
+ * Admin ve todas las de sus empresas, profesional ve solo las suyas, cliente ve solo las suyas.
+ */
+export async function obtenerTodas(
+  caller_usuario_id: string,
+  caller_rol: CallerRol,
+  empresa_id?: string
+): Promise<ActionResult<ReservaListItem[]>> {
+  try {
+    const sb = adminClient()
+
+    if (caller_rol === 'admin' || caller_rol === 'superadmin') {
+      const { data: membresias } = await sb
+        .from('usuario_empresa')
+        .select('empresa_id')
+        .eq('usuario_id', caller_usuario_id)
+
+      const empresaIds = (membresias ?? []).map((r: any) => r.empresa_id)
+      if (empresaIds.length === 0) return { success: true, data: [] }
+
+      let query = sb.from('reservas').select('*')
+      if (empresa_id) {
+        if (!empresaIds.includes(empresa_id)) {
+          return { success: false, error: 'Sin acceso a esta empresa', code: 403 }
+        }
+        query = query.eq('empresa_id', empresa_id)
+      } else {
+        query = query.in('empresa_id', empresaIds)
+      }
+
+      const { data: reservasData, error } = await query.order('fecha', { ascending: false })
+      if (error) throw error
+
+      const data = await enriquecerReservas(sb, reservasData ?? [])
+      return { success: true, data }
+    } else if (caller_rol === 'profesional') {
+      let query = sb.from('reservas').select('*').eq('profesional_id', caller_usuario_id)
+      if (empresa_id) query = query.eq('empresa_id', empresa_id)
+
+      const { data: reservasData, error } = await query.order('fecha', { ascending: false })
+      if (error) throw error
+
+      const data = await enriquecerReservas(sb, reservasData ?? [])
+      return { success: true, data }
+    } else {
+      let query = sb.from('reservas').select('*').eq('cliente_id', caller_usuario_id)
+      if (empresa_id) query = query.eq('empresa_id', empresa_id)
+
+      const { data: reservasData, error } = await query.order('fecha', { ascending: false })
+      if (error) throw error
+
+      const data = await enriquecerReservas(sb, reservasData ?? [])
+      return { success: true, data }
+    }
+  } catch (e: any) {
+    console.error('[actions/reservas obtenerTodas]', e.message)
+    return { success: false, error: e.message, code: 500 }
+  }
+}
+
+/**
+ * Obtener resumen de caja diario: pagos recaudados y reservas pendientes de pago.
+ */
+export async function obtenerResumenCajaDiario(
+  fecha: string,
+  caller_usuario_id: string,
+  caller_rol: CallerRol,
+  empresa_id?: string
+): Promise<ActionResult<{
+  totalRecaudado: number
+  desglosePagos: Record<string, number>
+  transaccionesPendientes: ReservaListItem[]
+  cantidadPagadas: number
+  cantidadPendientes: number
+}>> {
+  try {
+    const sb = adminClient()
+
+    // Obtener empresaIds del usuario
+    let empresaIds: string[] = []
+    if (caller_rol === 'admin' || caller_rol === 'superadmin') {
+      const { data: membresias } = await sb
+        .from('usuario_empresa')
+        .select('empresa_id')
+        .eq('usuario_id', caller_usuario_id)
+      empresaIds = (membresias ?? []).map((r: any) => r.empresa_id)
+      if (empresaIds.length === 0) {
+        return {
+          success: true,
+          data: {
+            totalRecaudado: 0,
+            desglosePagos: {},
+            transaccionesPendientes: [],
+            cantidadPagadas: 0,
+            cantidadPendientes: 0,
+          },
+        }
+      }
+      if (empresa_id && !empresaIds.includes(empresa_id)) {
+        return { success: false, error: 'Sin acceso a esta empresa', code: 403 }
+      }
+    } else if (caller_rol === 'profesional' || caller_rol === 'cliente') {
+      return { success: false, error: 'Sin permiso para acceder reportes', code: 403 }
+    }
+
+    // Obtener pagos del día
+    let pagosQuery = sb
+      .from('pagos_reservas')
+      .select('reserva_id, monto, metodo_pago')
+      .gte('created_at', `${fecha}T00:00:00`)
+      .lte('created_at', `${fecha}T23:59:59`)
+
+    if (empresa_id) {
+      pagosQuery = pagosQuery.eq('empresa_id', empresa_id)
+    } else {
+      pagosQuery = pagosQuery.in('empresa_id', empresaIds)
+    }
+
+    const { data: pagos, error: pagosError } = await pagosQuery
+    if (pagosError) throw pagosError
+
+    const totalRecaudado = (pagos || []).reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
+    const desglosePagos: Record<string, number> = {}
+    ;(pagos || []).forEach((p) => {
+      const metodo = p.metodo_pago || 'sin_especificar'
+      desglosePagos[metodo] = (desglosePagos[metodo] || 0) + parseFloat(p.monto || 0)
+    })
+
+    // Obtener reservas pendientes del día
+    let reservasQuery = sb
+      .from('reservas')
+      .select('*')
+      .eq('fecha', fecha)
+      .neq('estado', 'CANCELADA_CLIENTE')
+      .neq('estado', 'CANCELADA_PROFESIONAL')
+      .eq('pagado', false)
+
+    if (empresa_id) {
+      reservasQuery = reservasQuery.eq('empresa_id', empresa_id)
+    } else {
+      reservasQuery = reservasQuery.in('empresa_id', empresaIds)
+    }
+
+    const { data: reservasPendientesRaw, error: reservasError } = await reservasQuery
+    if (reservasError) throw reservasError
+
+    const transaccionesPendientes = await enriquecerReservas(sb, reservasPendientesRaw ?? [])
+
+    return {
+      success: true,
+      data: {
+        totalRecaudado,
+        desglosePagos,
+        transaccionesPendientes,
+        cantidadPagadas: new Set((pagos || []).map((p) => p.reserva_id)).size,
+        cantidadPendientes: transaccionesPendientes.length,
+      },
+    }
+  } catch (e: any) {
+    console.error('[actions/reservas obtenerResumenCajaDiario]', e.message)
+    return { success: false, error: e.message, code: 500 }
+  }
+}
