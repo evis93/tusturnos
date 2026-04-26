@@ -14,11 +14,8 @@ export default function HomePage() {
       router.replace('/auth/login');
       return;
     }
-    if (profile.rol === 'superadmin') router.replace('/tusturnos');
-    else if (profile.rol === 'admin') router.replace('/admin/agenda');
-    else if (profile.rol === 'profesional') router.replace('/profesional/agenda');
-    else if (profile.rol === 'cliente') router.replace('/cliente');
-    else router.replace('/auth/login');
+    if (profile.rol === 'superadmin') router.replace('/nrc-admin/dashboard');
+    else router.replace('/seleccionar-empresa');
   }, [profile, loading, router]);
 
   return (
