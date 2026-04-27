@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useSucursal } from '@/src/context/SucursalContext';
-import { ReservaController } from '@/src/controllers/ReservaController';
+import * as reservasActions from '@/src/actions/reservas';
 import { supabase } from '@/src/config/supabase';
 import { X } from 'lucide-react';
 
@@ -104,7 +104,7 @@ export default function ModalPago({ open, onClose, onSaved, reserva, profile }: 
     setErrorMetodo(false);
     setErrorGuardar(null);
     setGuardando(true);
-    const result = await ReservaController.registrarPago(
+    const result = await reservasActions.registrarPago(
       reserva.id,
       {
         precio_total: monto ? parseFloat(monto) : null,
@@ -113,9 +113,7 @@ export default function ModalPago({ open, onClose, onSaved, reserva, profile }: 
         monto_seña: montoSena !== '' ? montoSena : null,
         seña_pagada: senaPagada,
         nota: nota.trim() || null,
-        sucursal_id: reserva.sucursal_id || sucursalActiva?.id || null,
-      },
-      profile
+      }
     );
     setGuardando(false);
     if (result.success) {

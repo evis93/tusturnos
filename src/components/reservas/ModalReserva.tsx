@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '@/src/context/ThemeContext';
-import { ReservaController } from '@/src/controllers/ReservaController';
-import { ConsultanteController } from '@/src/controllers/ConsultanteController';
+import * as reservasActions from '@/src/actions/reservas';
+import * as consultantesActions from '@/src/actions/consultantes';
 import { DatabaseService } from '@/src/services/database.service';
 import { X, Search, Loader2 } from 'lucide-react';
 import TelefonoInput from '@/src/components/ui/TelefonoInput';
@@ -147,7 +147,7 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
     if (!query.trim()) { setConsultantesFiltrados([]); return; }
     searchTimeout.current = setTimeout(async () => {
       setIsSearching(true);
-      const result = await ConsultanteController.buscarConsultantes(query, profile);
+      const result = await consultantesActions.buscarConsultantes(profile?.empresa_id || '', query);
       if (result.success && 'data' in result) setConsultantesFiltrados(result.data || []);
       setIsSearching(false);
     }, 300);
@@ -179,11 +179,11 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
         const json = await res.json();
         if (json.usuarioId) consultanteId = json.usuarioId;
       } else {
-        const r = await ConsultanteController.crearConsultante({
+        const r = await consultantesActions.crearConsultante(profile?.empresa_id || '', {
           nombre_completo: form.consultante_nombre,
           email: form.consultante_email,
           telefono: form.consultante_telefono,
-        }, profile);
+        });
         if (r.success) consultanteId = (r as any).data?.id;
       }
     }
@@ -205,8 +205,8 @@ export default function ModalReserva({ open, onClose, onSaved, onNuevoClienteCre
     };
 
     const result = reservaEditar
-      ? await ReservaController.actualizarReserva(reservaEditar.id, reservaData, profile)
-      : await ReservaController.crearReserva(reservaData, form.profesional_id, profile);
+      ? await reservasActions.actualizarReserva(reservaEditar.id, reservaData)
+      : await reservasActions.crearReservaModal(reservaData);
 
     setGuardando(false);
     if (result.success) {

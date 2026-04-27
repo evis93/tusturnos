@@ -900,3 +900,221 @@ export async function obtenerResumenCajaDiario(
     return { success: false, error: e.message, code: 500 }
   }
 }
+
+/**
+ * Crea una reserva simple (para uso en ModalReserva del admin).
+ * Versión simplificada que directamente inserta en la BD.
+ */
+export async function crearReservaModal(
+  datos: {
+    cliente_id: string
+    sucursal_id: string
+    profesional_id: string
+    servicio_id?: string | null
+    fecha: string
+    hora_inicio: string
+    servicio_nombre?: string | null
+    precio_total?: number | null
+    monto_seña?: number | null
+    estado: ReservaEstado
+    reserva_origen_id?: string | null
+  }
+): Promise<ActionResult<ReservaListItem>> {
+  try {
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
+    const { data, error } = await sb
+      .from('reservas')
+      .insert([{
+        cliente_id: datos.cliente_id,
+        sucursal_id: datos.sucursal_id,
+        profesional_id: datos.profesional_id,
+        servicio_id: datos.servicio_id || null,
+        fecha: datos.fecha,
+        hora_inicio: datos.hora_inicio,
+        servicio_nombre: datos.servicio_nombre || null,
+        precio_total: datos.precio_total || null,
+        monto_seña: datos.monto_seña || null,
+        estado: datos.estado,
+        reserva_origen_id: datos.reserva_origen_id || null,
+      }])
+      .select('*')
+
+    if (error) throw error
+    if (!data || data.length === 0) {
+      return { success: false, error: 'No se pudo crear la reserva' }
+    }
+
+    const enriquecidas = await enriquecerReservas(sb, data)
+    return { success: true, data: enriquecidas[0] }
+  } catch (e: any) {
+    console.error('[actions/reservas crearReservaModal]', e.message)
+    return { success: false, error: e.message, code: 500 }
+  }
+}
+
+/**
+ * Actualiza los datos de una reserva existente.
+ */
+export async function actualizarReserva(
+  reservaId: string,
+  datos: Partial<{
+    cliente_id: string
+    sucursal_id: string
+    profesional_id: string
+    servicio_id: string
+    fecha: string
+    hora_inicio: string
+    estado: ReservaEstado
+    precio_total: number | null
+    metodo_pago: string | null
+    pagado: boolean
+    monto_seña: number | null
+    seña_pagada: boolean
+    nota: string | null
+  }>
+): Promise<ActionResult<ReservaListItem>> {
+  try {
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
+    const updatePayload: any = {}
+    if (datos.cliente_id !== undefined) updatePayload.cliente_id = datos.cliente_id
+    if (datos.sucursal_id !== undefined) updatePayload.sucursal_id = datos.sucursal_id
+    if (datos.profesional_id !== undefined) updatePayload.profesional_id = datos.profesional_id
+    if (datos.servicio_id !== undefined) updatePayload.servicio_id = datos.servicio_id
+    if (datos.fecha !== undefined) updatePayload.fecha = datos.fecha
+    if (datos.hora_inicio !== undefined) updatePayload.hora_inicio = datos.hora_inicio
+    if (datos.estado !== undefined) updatePayload.estado = datos.estado
+    if (datos.precio_total !== undefined) updatePayload.precio_total = datos.precio_total
+    if (datos.metodo_pago !== undefined) updatePayload.metodo_pago = datos.metodo_pago
+    if (datos.pagado !== undefined) updatePayload.pagado = datos.pagado
+    if (datos.monto_seña !== undefined) updatePayload.monto_seña = datos.monto_seña
+    if (datos.seña_pagada !== undefined) updatePayload.seña_pagada = datos.seña_pagada
+    if (datos.nota !== undefined) updatePayload.nota = datos.nota
+
+    const { data, error } = await sb
+      .from('reservas')
+      .update(updatePayload)
+      .eq('id', reservaId)
+      .select('*')
+
+    if (error) throw error
+    if (!data || data.length === 0) {
+      return { success: false, error: 'Reserva no encontrada' }
+    }
+
+    const enriquecidas = await enriquecerReservas(sb, data)
+    return { success: true, data: enriquecidas[0] }
+  } catch (e: any) {
+    console.error('[actions/reservas actualizarReserva]', e.message)
+    return { success: false, error: e.message, code: 500 }
+  }
+}
+
+/**
+ * Registra un pago para una reserva.
+ * Si el pago es completo, archiva la reserva en fichas.
+ */
+export async function registrarPago(
+  reservaId: string,
+  pagoData: {
+    precio_total?: number | null
+    metodo_pago?: string
+    pagado?: boolean
+    monto_seña?: number | null
+    seña_pagada?: boolean
+    nota?: string | null
+  }
+): Promise<ActionResult<{ message: string; fichaId?: string }>> {
+  try {
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
+    // Determinar si el pago está completo
+    const tieneSeña = pagoData.monto_seña != null && parseFloat(String(pagoData.monto_seña || 0)) > 0
+    const completamentePagado = pagoData.pagado && (!tieneSeña || pagoData.seña_pagada)
+
+    // Si no está completamente pagado, solo actualizar campos
+    if (!completamentePagado) {
+      const updateData: any = {}
+      if (pagoData.precio_total !== undefined) updateData.precio_total = pagoData.precio_total
+      if (pagoData.metodo_pago !== undefined) updateData.metodo_pago = pagoData.metodo_pago
+      if (pagoData.pagado !== undefined) updateData.pagado = pagoData.pagado
+      if (pagoData.monto_seña !== undefined) updateData.monto_seña = pagoData.monto_seña === null ? null : parseFloat(String(pagoData.monto_seña))
+      if (pagoData.seña_pagada !== undefined) updateData.seña_pagada = pagoData.seña_pagada
+      if (pagoData.nota !== undefined) updateData.nota = pagoData.nota
+
+      const { error } = await sb
+        .from('reservas')
+        .update(updateData)
+        .eq('id', reservaId)
+
+      if (error) throw error
+      return { success: true, data: { message: 'Pago registrado' } }
+    }
+
+    // === COBRO COMPLETO: archivar en fichas + eliminar reserva ===
+    const { data: reserva, error: fetchError } = await sb
+      .from('reservas')
+      .select('*')
+      .eq('id', reservaId)
+      .single()
+
+    if (fetchError) throw fetchError
+
+    const sucursalId = reserva.sucursal_id || null
+    if (!sucursalId) {
+      return { success: false, error: 'No hay sucursal seleccionada' }
+    }
+
+    const notaFinal = pagoData.nota ?? reserva.nota ?? null
+
+    // Crear ficha
+    const { data: fichaData, error: fichaError } = await sb
+      .from('fichas')
+      .insert({
+        cliente_id: reserva.cliente_id,
+        sucursal_id: sucursalId,
+        profesional_id: reserva.profesional_id,
+        servicio_id: reserva.servicio_id ?? null,
+        fecha: reserva.fecha,
+        hora: reserva.hora_inicio,
+        nota: notaFinal,
+      })
+      .select()
+      .single()
+
+    if (fichaError) throw new Error(`Error al crear ficha: ${fichaError.message}`)
+
+    // Registrar pago
+    const { error: pagoError } = await sb.from('pagos').insert({
+      reserva_id: reservaId,
+      monto: pagoData.precio_total,
+      metodo: pagoData.metodo_pago,
+      fecha: new Date().toISOString(),
+      nota: pagoData.nota,
+    })
+
+    if (pagoError) console.error('Error registrando pago:', pagoError.message)
+
+    // Eliminar reserva
+    const { error: deleteError } = await sb.from('reservas').delete().eq('id', reservaId)
+    if (deleteError) console.error('Error eliminando reserva:', deleteError.message)
+
+    return { success: true, data: { message: 'Pago registrado y sesión archivada', fichaId: fichaData.id } }
+  } catch (e: any) {
+    console.error('[actions/reservas registrarPago]', e.message)
+    return { success: false, error: e.message, code: 500 }
+  }
+}
