@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { ConsultanteController } from '@/src/controllers/ConsultanteController';
-import { ReservaController } from '@/src/controllers/ReservaController';
-import { FichaClienteController } from '@/src/controllers/FichaClienteController';
+import * as consultantesActions from '@/src/actions/consultantes';
+import * as reservasActions from '@/src/actions/reservas';
+import * as fichasActions from '@/src/actions/fichas';
 import { ArrowLeft, Pencil, Plus, X, CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
 import TelefonoInput from '@/src/components/ui/TelefonoInput';
 
@@ -72,18 +72,16 @@ export default function FichaClientePage() {
   const cargar = useCallback(async () => {
     if (!clienteId) return;
     setLoading(true);
-    const [cResult, rResult] = await Promise.all([
-      ConsultanteController.obtenerConsultantePorId(clienteId, profile),
-      ReservaController.obtenerReservasPorCliente(clienteId, profile),
+    const [cResult, rResult, fResult] = await Promise.all([
+      consultantesActions.obtenerConsultantePorId(clienteId),
+      reservasActions.obtenerReservasPorCliente(clienteId),
+      fichasActions.obtenerFichasPorCliente(clienteId),
     ]);
-    if (cResult.success) {
-      setCliente(cResult.data);
-      const fResult = await FichaClienteController.obtenerFichasPorCliente(clienteId, profile);
-      if (fResult.success) setFichas(fResult.data || []);
-    }
+    if (cResult.success) setCliente(cResult.data);
     if (rResult.success) setReservas(rResult.data || []);
+    if (fResult.success) setFichas(fResult.data || []);
     setLoading(false);
-  }, [clienteId, profile]);
+  }, [clienteId]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -102,7 +100,7 @@ export default function FichaClientePage() {
   const handleGuardar = async () => {
     if (!editNombre.trim()) { setErrorEdit('El nombre es obligatorio'); return; }
     setGuardando(true);
-    const result = await ConsultanteController.actualizarConsultante(clienteId, { nombre_completo: editNombre, telefono: editTelefono }, profile);
+    const result = await consultantesActions.actualizarConsultante(clienteId, { nombre_completo: editNombre, telefono: editTelefono });
     setGuardando(false);
     if (result.success) { setModalEdit(false); cargar(); }
     else setErrorEdit(result.error || 'No se pudo guardar');
@@ -111,15 +109,16 @@ export default function FichaClientePage() {
   const handleGuardarNota = async () => {
     if (!notaTexto.trim()) { setErrorNota('La nota no puede estar vacía'); return; }
     setGuardandoNota(true);
-    const result = await FichaClienteController.crearFicha(
-      { cliente_id: clienteId, nota: notaTexto, profesional_id: profile?.profesionalId || null },
-      profile,
-    );
+    const result = await fichasActions.crearFicha({
+      cliente_id: clienteId,
+      nota: notaTexto,
+      profesional_id: profile?.profesionalId || null,
+    });
     setGuardandoNota(false);
     if (result.success) {
-      setModalNota(false); setNotaTexto('');
-      const fResult = await FichaClienteController.obtenerFichasPorCliente(clienteId, profile);
-      if (fResult.success) setFichas(fResult.data || []);
+      setModalNota(false);
+      setNotaTexto('');
+      cargar();
     } else setErrorNota(result.error || 'No se pudo guardar');
   };
 
