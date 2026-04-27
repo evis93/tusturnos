@@ -228,10 +228,10 @@ function generarSlotsDelRango(horaInicio: string, horaFin: string): string[] {
   return slots;
 }
 
-export function calcularSlotsDisponibles(
+export async function calcularSlotsDisponibles(
   horarios: Horario[],
   ocupados: string[]
-): { manana: string[]; tarde: string[]; todos: string[] } {
+): Promise<{ manana: string[]; tarde: string[]; todos: string[] }> {
   const todosLosSlots: string[] = [];
   horarios.forEach((h) => {
     todosLosSlots.push(...generarSlotsDelRango(h.hora_inicio, h.hora_fin));
@@ -250,4 +250,92 @@ export function calcularSlotsDisponibles(
   });
 
   return { manana, tarde, todos: disponibles };
+}
+
+export async function solicitarReserva(
+  empresaId: string,
+  profesionalId: string,
+  clienteId: string,
+  servicioId: string | null,
+  sucursalId: string | null,
+  fecha: string,
+  horaInicio: string,
+  reservaOrigenId: string | null
+): Promise<ActionResult<any>> {
+  try {
+    if (!empresaId || !clienteId || !profesionalId || !fecha || !horaInicio) {
+      return { success: false, error: 'Parámetros requeridos incompletos' };
+    }
+
+    const sb = adminClient();
+
+    // Combinar fecha + hora en string local (hora_inicio es timestamp without time zone)
+    const fechaHoraInicio = `${fecha}T${horaInicio}:00`;
+
+    // Obtener duración del servicio si existe
+    let duracionMinutos = 30; // duración por defecto
+    let servicioNombre = '';
+
+    if (servicioId && servicioId.trim()) {
+      const { data: servicio } = await sb
+        .from('servicios')
+        .select('duracion_minutos, nombre')
+        .eq('id', servicioId.trim())
+        .maybeSingle();
+
+      if (servicio?.duracion_minutos) duracionMinutos = servicio.duracion_minutos;
+      if (servicio?.nombre) servicioNombre = servicio.nombre;
+    }
+
+    // Calcular hora de fin
+    const [hh, mm] = fechaHoraInicio.split('T')[1].split(':').map(Number);
+    const finTotalMin = hh * 60 + mm + duracionMinutos;
+    const finHH = String(Math.floor(finTotalMin / 60)).padStart(2, '0');
+    const finMM = String(finTotalMin % 60).padStart(2, '0');
+    const finStr = `${fecha}T${finHH}:${finMM}:00`;
+
+    // Verificar que el slot no esté ya ocupado
+    const { data: conflicto } = await sb
+      .from('reservas')
+      .select('id')
+      .eq('profesional_id', profesionalId)
+      .eq('fecha', fecha)
+      .in('estado', ['pendiente', 'confirmada', 'PENDIENTE', 'CONFIRMADA', 'cambio_solicitado', 'CAMBIO_SOLICITADO'])
+      .lt('hora_inicio', finStr)
+      .gte('hora_inicio', fechaHoraInicio)
+      .maybeSingle();
+
+    if (conflicto) {
+      return { success: false, error: 'El profesional no está disponible en ese horario' };
+    }
+
+    // Crear la reserva en estado PENDIENTE
+    const { data: newReserva, error: insertError } = await sb
+      .from('reservas')
+      .insert({
+        empresa_id: empresaId,
+        cliente_id: clienteId,
+        profesional_id: profesionalId,
+        servicio_id: servicioId || null,
+        sucursal_id: sucursalId || null,
+        fecha,
+        hora_inicio: fechaHoraInicio,
+        hora_fin: finStr,
+        estado: 'pendiente',
+        servicio_nombre: servicioNombre,
+        reserva_origen_id: reservaOrigenId || null,
+      })
+      .select();
+
+    if (insertError) throw insertError;
+
+    return { success: true, data: newReserva?.[0] || {} };
+  } catch (e: any) {
+    console.error('[solicitarReserva]', e.message);
+    return {
+      success: false,
+      error: e.message,
+      code: 500,
+    };
+  }
 }

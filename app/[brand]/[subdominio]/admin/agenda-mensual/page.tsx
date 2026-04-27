@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { ReservaController } from '@/src/controllers/ReservaController';
+import * as reservasActions from '@/src/actions/reservas';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 
@@ -31,7 +31,7 @@ export default function AgendaMensualPage() {
     const inicio = `${año}-${mesStr}-01`;
     const fin = `${año}-${mesStr}-${ultimoDia.toString().padStart(2, '0')}`;
 
-    const result = await ReservaController.obtenerFechasConReservas(inicio, fin, profile?.profesionalId, profile);
+    const result = await reservasActions.obtenerFechasConReservas(inicio, fin, profile?.profesionalId);
     if (result.success && 'data' in result) {
       setFechasConReservas(new Set(((result as any).data as any[]).map((r: any) => r.fecha)));
     }

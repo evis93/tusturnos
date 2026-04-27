@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { ReservaController } from '@/src/controllers/ReservaController';
+import * as reservasActions from '@/src/actions/reservas';
 import ModalPago from '@/src/components/reservas/ModalPago';
 import { RefreshCw, MessageCircle, Check, X } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -35,10 +35,10 @@ export default function GestionReservasPage() {
 
   const cargarReservas = useCallback(async () => {
     setLoading(true);
-    const result = await ReservaController.obtenerTodas(profile);
+    const result = await reservasActions.obtenerTodas();
     if (result.success) setReservas((result as any).data || []);
     setLoading(false);
-  }, [profile]);
+  }, []);
 
   useEffect(() => { cargarReservas(); }, [cargarReservas]);
 
@@ -48,13 +48,13 @@ export default function GestionReservasPage() {
   }, [reservas, activeTab]);
 
   const handleConfirmar = async (id: string) => {
-    await ReservaController.actualizarEstado(id, 'confirmada', profile);
+    await reservasActions.cambiarEstadoReserva(id, 'confirmada');
     cargarReservas();
   };
 
   const handleRechazar = async (id: string) => {
     if (!confirm('¿Cancelar esta reserva?')) return;
-    await ReservaController.actualizarEstado(id, 'cancelada', profile);
+    await reservasActions.cambiarEstadoReserva(id, 'cancelada');
     cargarReservas();
   };
 

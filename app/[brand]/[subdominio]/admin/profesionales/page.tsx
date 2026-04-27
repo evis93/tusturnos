@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { ProfesionalController } from '@/src/controllers/ProfesionalController';
+import * as profesionalesActions from '@/src/actions/profesionales';
 import { Plus, Pencil, UserX } from 'lucide-react';
 import TelefonoInput from '@/src/components/ui/TelefonoInput';
 
@@ -22,7 +22,7 @@ export default function ProfesionalesPage() {
 
   const cargar = async () => {
     setLoading(true);
-    const result = await ProfesionalController.obtenerProfesionales(profile);
+    const result = await profesionalesActions.obtenerProfesionales(profile.empresa_id);
     if (result.success) setProfesionales((result as any).data);
     setLoading(false);
   };
@@ -53,8 +53,8 @@ export default function ProfesionalesPage() {
     const data = { nombre: form.nombre, nombre_completo: form.nombre, email: form.email, telefono: form.telefono, esAdmin: form.esAdmin };
 
     const result = editandoId
-      ? await ProfesionalController.actualizarProfesional(editandoId, data, profile)
-      : await ProfesionalController.crearProfesional(data, profile);
+      ? await profesionalesActions.actualizarProfesional(editandoId, data)
+      : await profesionalesActions.crearProfesional(profile.empresa_id, data);
 
     setGuardando(false);
 
@@ -72,7 +72,7 @@ export default function ProfesionalesPage() {
 
   const handleDesactivar = async (id: string) => {
     if (!confirm('¿Quitar este profesional de la empresa?')) return;
-    await ProfesionalController.desactivarProfesional(id, profile);
+    await profesionalesActions.desactivarProfesional(id);
     cargar();
   };
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { ReservaController } from '@/src/controllers/ReservaController';
+import * as reservasActions from '@/src/actions/reservas';
 import ModalPago from '@/src/components/reservas/ModalPago';
 import ModalReserva from '@/src/components/reservas/ModalReserva';
 import { RefreshCw, MessageCircle, Check, Clock } from 'lucide-react';
@@ -42,10 +42,10 @@ export default function GestionReservasPage() {
 
   const cargarReservas = useCallback(async () => {
     setLoading(true);
-    const result = await ReservaController.obtenerTodas(profile);
+    const result = await reservasActions.obtenerTodas();
     if (result.success) setReservas((result as any).data || []);
     setLoading(false);
-  }, [profile]);
+  }, []);
 
   useEffect(() => { cargarReservas(); }, [cargarReservas]);
 
@@ -64,7 +64,7 @@ export default function GestionReservasPage() {
   const reservasFiltradas = activeTab === 0 ? pendientes : confirmadas;
 
   const handleConfirmar = async (reserva: any) => {
-    await ReservaController.actualizarEstado(reserva.id, 'confirmada', profile);
+    await reservasActions.cambiarEstadoReserva(reserva.id, 'confirmada');
 
     // WhatsApp al cliente con confirmación (+ seña si corresponde)
     const tel = (reserva.consultante_telefono || reserva.consultante?.telefono || '').replace(/\D/g, '');

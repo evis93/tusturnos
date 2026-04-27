@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { ReservaController } from '@/src/controllers/ReservaController';
-import { ProfesionalController } from '@/src/controllers/ProfesionalController';
+import * as reservasActions from '@/src/actions/reservas';
+import * as profesionalesActions from '@/src/actions/profesionales';
 import ModalReserva from '@/src/components/reservas/ModalReserva';
 import ModalPago from '@/src/components/reservas/ModalPago';
 import ModalFicha from '@/src/components/reservas/ModalFicha';
@@ -57,7 +57,7 @@ export default function AgendaPage() {
   const cargarReservas = useCallback(async () => {
     setLoading(true);
     const [result, fichasResult] = await Promise.all([
-      ReservaController.obtenerReservasPorFecha(selectedDate, profile?.profesionalId, profile),
+      reservasActions.obtenerReservasPorFecha(selectedDate, profile?.profesionalId, true),
       profile?.profesionalId
         ? supabase.from('fichas').select('id', { count: 'exact', head: true }).eq('fecha', selectedDate).eq('profesional_id', profile.profesionalId)
         : Promise.resolve({ count: 0 }),
@@ -70,10 +70,10 @@ export default function AgendaPage() {
   useEffect(() => { cargarReservas(); }, [cargarReservas]);
 
   useEffect(() => {
-    ProfesionalController.obtenerProfesionales(profile).then(r => {
+    profesionalesActions.obtenerProfesionales(profile?.empresa_id).then(r => {
       if (r.success && 'data' in r) setProfesionales(r.data || []);
     });
-  }, [profile]);
+  }, [profile?.empresa_id]);
 
   // Nombre del profesional actual (informativo)
   const profesionalActual = profesionales.find(p => p.id === profile?.profesionalId);
@@ -107,7 +107,7 @@ export default function AgendaPage() {
 
   const handleEliminarReserva = async (id: string) => {
     if (!confirm('¿Eliminar esta reserva?')) return;
-    await ReservaController.eliminarReserva(id, profile);
+    await reservasActions.eliminarReserva(id);
     cargarReservas();
   };
 

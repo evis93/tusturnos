@@ -77,7 +77,7 @@ const SERVICIOS: Servicio[] = [
   },
 ];
 
-export function obtenerCategorias(): ActionResult<Categoria[]> {
+export async function obtenerCategorias(): Promise<ActionResult<Categoria[]>> {
   try {
     return { success: true, data: CATEGORIAS };
   } catch (e: any) {
@@ -90,7 +90,7 @@ export function obtenerCategorias(): ActionResult<Categoria[]> {
   }
 }
 
-export function obtenerServicios(categoriaId: string = 'todos'): ActionResult<Servicio[]> {
+export async function obtenerServicios(categoriaId: string = 'todos'): Promise<ActionResult<Servicio[]>> {
   try {
     const data = categoriaId === 'todos'
       ? SERVICIOS

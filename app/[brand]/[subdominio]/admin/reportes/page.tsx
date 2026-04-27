@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { ReservaController } from '@/src/controllers/ReservaController';
+import * as reservasActions from '@/src/actions/reservas';
 import ModalPago from '@/src/components/reservas/ModalPago';
 import { ChevronLeft, ChevronRight, Banknote, RefreshCw, CreditCard, Wallet, MoreHorizontal, User, CheckCircle, Lock, LockOpen } from 'lucide-react';
 
@@ -57,10 +57,10 @@ export default function ReportesPage() {
 
   const cargarResumen = useCallback(async () => {
     setLoading(true);
-    const result = await ReservaController.obtenerResumenCajaDiario(formatFechaISO(fecha), profile);
+    const result = await reservasActions.obtenerResumenCajaDiario(formatFechaISO(fecha));
     if (result.success) setResumen((result as any).data);
     setLoading(false);
-  }, [fecha, profile]);
+  }, [fecha]);
 
   useEffect(() => { cargarResumen(); }, [cargarResumen]);
 

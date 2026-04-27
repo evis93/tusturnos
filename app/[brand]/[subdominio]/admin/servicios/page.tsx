@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { ServiciosController } from '@/src/controllers/ServiciosController';
+import * as serviciosActions from '@/src/actions/servicios';
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { calcularMontoSena } from '@/src/types/servicios';
 
@@ -26,7 +26,7 @@ export default function ServiciosPage() {
 
   const cargar = async () => {
     setLoading(true);
-    const result = await ServiciosController.obtenerServicios(profile);
+    const result = await serviciosActions.obtenerServicios(profile.empresa_id);
     if (result.success) setServicios((result as any).data);
     setLoading(false);
   };
@@ -59,21 +59,21 @@ export default function ServiciosPage() {
     if (!form.nombre.trim()) { setError('El nombre es obligatorio'); return; }
     setGuardando(true);
     const result = editandoId
-      ? await ServiciosController.actualizarServicio(editandoId, form, profile)
-      : await ServiciosController.crearServicio(form, profile);
+      ? await serviciosActions.actualizarServicio(editandoId, form)
+      : await serviciosActions.crearServicio(profile.empresa_id, form);
     setGuardando(false);
     if (result.success) { setModalOpen(false); cargar(); }
     else setError((result as any).error || 'Error al guardar');
   };
 
   const handleToggle = async (id: string, activo: boolean) => {
-    await ServiciosController.toggleActivo(id, !activo, profile);
+    await serviciosActions.toggleActivo(id, !activo);
     cargar();
   };
 
   const handleEliminar = async (id: string) => {
     if (!confirm('¿Eliminar este servicio?')) return;
-    await ServiciosController.eliminarServicio(id, profile);
+    await serviciosActions.eliminarServicio(id);
     cargar();
   };
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
-import { ConsultanteController } from '@/src/controllers/ConsultanteController';
+import * as consultantesActions from '@/src/actions/consultantes';
 import { Search, X, FolderOpen, Pencil, UserX, UserPlus } from 'lucide-react';
 import TelefonoInput from '@/src/components/ui/TelefonoInput';
 
@@ -53,7 +53,7 @@ export default function ClientesPage() {
 
   const cargarClientes = useCallback(async () => {
     setLoading(true);
-    const result = await ConsultanteController.obtenerConsultantes(profile);
+    const result = await consultantesActions.obtenerConsultantes(profile.empresa_id);
     if (result.success) setClientes(result.data || []);
     setLoading(false);
   }, [profile]);
@@ -64,12 +64,12 @@ export default function ClientesPage() {
     if (!busqueda.trim()) { cargarClientes(); return; }
     const timer = setTimeout(async () => {
       setBuscando(true);
-      const result = await ConsultanteController.buscarConsultantes(busqueda, profile);
+      const result = await consultantesActions.buscarConsultantes(profile.empresa_id, busqueda);
       if (result.success) setClientes(result.data || []);
       setBuscando(false);
     }, 400);
     return () => clearTimeout(timer);
-  }, [busqueda]);
+  }, [busqueda, cargarClientes]);
 
   const clientesFiltrados = useMemo(() =>
     mostrarInactivos ? clientes : clientes.filter((c: any) => c.activo !== false),
@@ -86,7 +86,7 @@ export default function ClientesPage() {
 
   const handleDesactivar = async (cliente: any) => {
     if (!confirm(`¿Desactivar a ${cliente.nombre_completo}? Sus datos se conservarán.`)) return;
-    const result = await ConsultanteController.eliminarConsultante(cliente.id, profile);
+    const result = await consultantesActions.eliminarConsultante(cliente.id);
     if (result.success) {
       setClientes(prev => prev.map((c: any) => c.id === cliente.id ? { ...c, activo: false } : c));
     } else {
@@ -97,10 +97,9 @@ export default function ClientesPage() {
   const handleGuardar = async () => {
     if (!editNombre.trim()) { setErrorEdit('El nombre es obligatorio'); return; }
     setGuardando(true);
-    const result = await ConsultanteController.actualizarConsultante(
+    const result = await consultantesActions.actualizarConsultante(
       clienteEditando.id,
       { nombre_completo: editNombre, telefono: editTelefono },
-      profile,
     );
     setGuardando(false);
     if (result.success) { setModalEdit(false); cargarClientes(); }
@@ -117,15 +116,15 @@ export default function ClientesPage() {
     if (!altaNombre.trim()) { setErrorAlta('El nombre es obligatorio'); return; }
     if (altaAcceso && !altaEmail.trim()) { setErrorAlta('El email es obligatorio para habilitar el acceso'); return; }
     setCreando(true); setErrorAlta('');
-    const result = await ConsultanteController.crearConsultante(
+    const result = await consultantesActions.crearConsultante(
+      profile.empresa_id,
       { nombre_completo: altaNombre, email: altaEmail, telefono: altaTelefono, autorizar_acceso_app: altaAcceso },
-      profile,
     );
     setCreando(false);
     if (result.success) {
       setModalAlta(false);
       cargarClientes();
-      if (result.invitacionEnviada) alert('Cliente creado. Se envió un email de invitación para activar su cuenta.');
+      if ((result.data as any).invitacionEnviada) alert('Cliente creado. Se envió un email de invitación para activar su cuenta.');
     } else {
       setErrorAlta(result.error || 'No se pudo crear el cliente');
     }

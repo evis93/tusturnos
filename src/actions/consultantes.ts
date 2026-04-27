@@ -31,6 +31,13 @@ export interface ActualizarConsultanteInput {
   activo?: boolean;
 }
 
+export interface CrearConsultanteInput {
+  nombre_completo: string;
+  email?: string;
+  telefono?: string;
+  autorizar_acceso_app?: boolean;
+}
+
 export async function obtenerConsultantePorId(
   clienteId: string
 ): Promise<ActionResult<Consultante>> {
@@ -257,6 +264,177 @@ export async function eliminarConsultante(
     };
   } catch (e: any) {
     console.error('[eliminarConsultante]', e.message);
+    return {
+      success: false,
+      error: e.message,
+      code: 500,
+    };
+  }
+}
+
+export async function crearConsultante(
+  empresaId: string,
+  datos: CrearConsultanteInput
+): Promise<ActionResult<{ id: string; invitacionEnviada: boolean }>> {
+  try {
+    if (!empresaId) {
+      return { success: false, error: 'empresaId es requerido' };
+    }
+
+    if (!datos.nombre_completo?.trim()) {
+      return { success: false, error: 'El nombre es obligatorio' };
+    }
+
+    const sb = adminClient();
+    const emailNorm = datos.email?.trim().toLowerCase() || null;
+    const PASSWORD_CLIENTES = '123456';
+
+    // Sin email → crear cliente directo sin cuenta auth
+    if (!emailNorm) {
+      const { data: inserted, error } = await sb
+        .from('usuarios')
+        .insert({
+          nombre_completo: datos.nombre_completo.trim(),
+          telefono: datos.telefono?.trim() || null,
+          activo: true
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      const { data: rolData } = await sb.from('roles').select('id').eq('rol', 'cliente').maybeSingle();
+      await sb.from('usuario_empresa').insert({
+        usuario_id: inserted.id,
+        empresa_id: empresaId,
+        rol_id: rolData?.id,
+      });
+
+      return { success: true, data: { id: inserted.id, invitacionEnviada: false } };
+    }
+
+    // Con email → crear o reutilizar usuario auth
+    let usuarioId: string;
+    let authUserId: string;
+
+    const { data: usuarioExistente } = await sb
+      .from('usuarios')
+      .select('id, auth_user_id')
+      .eq('email', emailNorm)
+      .maybeSingle();
+
+    if (usuarioExistente) {
+      usuarioId = usuarioExistente.id;
+
+      if (usuarioExistente.auth_user_id) {
+        authUserId = usuarioExistente.auth_user_id;
+      } else {
+        const { data: authData, error: authError } = await sb.auth.admin.createUser({
+          email: emailNorm,
+          password: PASSWORD_CLIENTES,
+          email_confirmed: true,
+          user_metadata: { full_name: datos.nombre_completo.trim() },
+        });
+
+        if (authError) {
+          if (authError.message?.includes('already been registered') || authError.code === 'email_exists') {
+            throw new Error('Email ya registrado en autenticación');
+          }
+          throw authError;
+        }
+
+        authUserId = authData.user.id;
+        await sb
+          .from('usuarios')
+          .update({ auth_user_id: authUserId })
+          .eq('id', usuarioId);
+      }
+    } else {
+      const { data: authData, error: authError } = await sb.auth.admin.createUser({
+        email: emailNorm,
+        password: PASSWORD_CLIENTES,
+        email_confirmed: true,
+        user_metadata: { full_name: datos.nombre_completo.trim() },
+      });
+
+      if (authError) {
+        if (authError.message?.includes('already been registered') || authError.code === 'email_exists') {
+          throw new Error('Ya existe una cuenta con ese email');
+        }
+        throw authError;
+      }
+
+      authUserId = authData.user.id;
+
+      const { data: usuarioPorAuth } = await sb
+        .from('usuarios')
+        .select('id')
+        .eq('auth_user_id', authUserId)
+        .maybeSingle();
+
+      if (usuarioPorAuth) {
+        usuarioId = usuarioPorAuth.id;
+        await sb
+          .from('usuarios')
+          .update({
+            nombre_completo: datos.nombre_completo.trim(),
+            telefono: datos.telefono?.trim() || null,
+            activo: true
+          })
+          .eq('id', usuarioId);
+      } else {
+        const { data: nuevoUsuario, error: usuarioError } = await sb
+          .from('usuarios')
+          .insert({
+            auth_user_id: authUserId,
+            nombre_completo: datos.nombre_completo.trim(),
+            email: emailNorm,
+            telefono: datos.telefono?.trim() || null,
+            activo: true,
+          })
+          .select('id')
+          .single();
+
+        if (usuarioError) throw usuarioError;
+        usuarioId = nuevoUsuario.id;
+      }
+    }
+
+    const { data: rolData } = await sb
+      .from('roles')
+      .select('id')
+      .eq('rol', 'cliente')
+      .maybeSingle();
+
+    if (!rolData) {
+      throw new Error('Rol "cliente" no encontrado');
+    }
+
+    const { data: ueExistente } = await sb
+      .from('usuario_empresa')
+      .select('id')
+      .eq('usuario_id', usuarioId)
+      .eq('empresa_id', empresaId)
+      .maybeSingle();
+
+    if (!ueExistente) {
+      const { error: ueError } = await sb
+        .from('usuario_empresa')
+        .insert({
+          usuario_id: usuarioId,
+          empresa_id: empresaId,
+          rol_id: rolData.id,
+        });
+
+      if (ueError) throw ueError;
+    }
+
+    return {
+      success: true,
+      data: { id: usuarioId, invitacionEnviada: datos.autorizar_acceso_app === true }
+    };
+  } catch (e: any) {
+    console.error('[crearConsultante]', e.message);
     return {
       success: false,
       error: e.message,

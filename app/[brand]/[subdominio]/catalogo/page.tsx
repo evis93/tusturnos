@@ -1,23 +1,17 @@
-'use client';
-
-import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from '@/src/context/ThemeContext';
-import { CatalogoPublicoController } from '@/src/controllers/CatalogoPublicoController';
+import * as catalogoActions from '@/src/actions/catalogo';
+import CatalogoClient from '../catalogo-client';
 
-export default function CatalogoPage() {
-  const params = useParams();
-  const brand = params.brand as string;
-  const subdominio = params.subdominio as string;
-  const { colors, empresaNombre } = useTheme();
+export default async function CatalogoPage() {
+  const categoriasResult = await catalogoActions.obtenerCategorias();
+  const categoriasData = (categoriasResult as any).data || [];
 
-  const categoriasResult = CatalogoPublicoController.obtenerCategorias();
-  const categorias = (categoriasResult as any).data || [];
+  const serviciosResult = await catalogoActions.obtenerServicios('todos');
+  const serviciosData = (serviciosResult as any).data || [];
 
-  const [categoriaActiva, setCategoriaActiva] = useState('todos');
-  const serviciosResult = CatalogoPublicoController.obtenerServicios(categoriaActiva);
-  const servicios = (serviciosResult as any).data || [];
+  return <CatalogoClient categorias={categoriasData} servicios={serviciosData} />;
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8fbff' }}>

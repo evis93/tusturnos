@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useSucursal } from '@/src/context/SucursalContext';
-import { ReservaClienteController } from '@/src/controllers/ReservaClienteController';
+import * as reservasClienteActions from '@/src/actions/reservas-cliente';
 
 const DIAS_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -61,8 +61,8 @@ export default function ReservarPage() {
       if (!profile?.empresaId || !profile?.usuarioId) return;
       setCargandoDatos(true);
       const [resProf, resSvc] = await Promise.all([
-        (ReservaClienteController as any).obtenerProfesionalesEmpresa(profile.empresaId),
-        (ReservaClienteController as any).obtenerServiciosEmpresa(profile.empresaId),
+        reservasClienteActions.obtenerProfesionalesEmpresa(profile.empresaId),
+        reservasClienteActions.obtenerServiciosEmpresa(profile.empresaId),
       ]);
       if (resProf.success && resProf.data.length > 0) {
         setProfesionales(resProf.data);
@@ -92,13 +92,13 @@ export default function ReservarPage() {
       const fechaStr = fechaISO(diaSeleccionado);
 
       const [resHorarios, resOcupados] = await Promise.all([
-        (ReservaClienteController as any).obtenerHorariosDelDia(profId, diaSemana, profile?.empresaId),
-        (ReservaClienteController as any).obtenerSlotsOcupados(profId, fechaStr, sucursalActiva?.id ?? null),
+        reservasClienteActions.obtenerHorariosDelDia(profId, diaSemana, profile?.empresaId),
+        reservasClienteActions.obtenerSlotsOcupados(profId, fechaStr, sucursalActiva?.id ?? null),
       ]);
 
       if (cancelado) return;
       if (resHorarios.success && resHorarios.data.length > 0) {
-        const { manana, tarde } = (ReservaClienteController as any).calcularSlotsDisponibles(
+        const { manana, tarde } = await reservasClienteActions.calcularSlotsDisponibles(
           resHorarios.data, resOcupados.success ? resOcupados.data : []
         );
         setSlotsDisponibles({ manana, tarde });
@@ -115,16 +115,16 @@ export default function ReservarPage() {
   const handleSolicitar = async () => {
     if (!profSeleccionado || !slotSeleccionado || !diaSeleccionado) return;
     setEnviando(true);
-    const res = await (ReservaClienteController as any).solicitarReserva({
-      empresaId: profile!.empresaId,
-      profesionalId: profSeleccionado.id,
-      clienteId: profile!.usuarioId,
-      servicioId: servicioSeleccionado?.id || null,
-      sucursalId: sucursalActiva?.id || null,
-      fecha: fechaISO(diaSeleccionado),
-      horaInicio: slotSeleccionado,
-      reservaOrigenId: cambiarId || null,
-    });
+    const res = await reservasClienteActions.solicitarReserva(
+      profile!.empresaId,
+      profSeleccionado.id,
+      profile!.usuarioId,
+      servicioSeleccionado?.id || null,
+      sucursalActiva?.id || null,
+      fechaISO(diaSeleccionado),
+      slotSeleccionado,
+      cambiarId || null
+    );
     setEnviando(false);
     if (res.success) {
       const msg = cambiarId
