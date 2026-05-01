@@ -6,15 +6,20 @@ import { useAuth } from '@/src/context/AuthContext';
 import SelectorEmpresas from '@/src/components/SelectorEmpresas';
 
 export default function SeleccionarEmpresaPage() {
-  const { profile, loading } = useAuth();
+  const { profile, loading, totalSucursales } = useAuth();
   const router = useRouter();
 
-  // Sin sesión → login
   useEffect(() => {
     if (!loading && !profile) {
       router.replace('/auth/login');
+      return;
     }
-  }, [loading, profile, router]);
+
+    // Si tiene solo 1 sucursal, no debería estar acá
+    if (!loading && (totalSucursales ?? 0) <= 1) {
+      router.replace('/');
+    }
+  }, [loading, profile, totalSucursales, router]);
 
   if (loading || !profile) {
     return (

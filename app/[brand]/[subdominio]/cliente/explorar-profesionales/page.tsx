@@ -43,6 +43,8 @@ export default function ExplorarProfesionalesPage() {
   const router = useRouter();
   const { profile, setActiveEmpresa } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
+  const backgroundColor = profile?.colorBackground || colors.background;
 
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,14 +126,14 @@ export default function ExplorarProfesionalesPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center px-6 py-12 pb-28"
-      style={{ backgroundColor: colors.background }}
+      style={{ backgroundColor }}
     >
       {/* Header */}
       <header className="w-full max-w-md mb-10 text-center">
         <h1 className="text-2xl font-bold tracking-tight lowercase mb-2" style={{ color: colors.secondary }}>
           {profile?.empresaNombre?.toLowerCase() || 'mensana'}
         </h1>
-        <div className="h-1 w-8 rounded-full mx-auto" style={{ backgroundColor: colors.primaryFaded }} />
+        <div className="h-1 w-8 rounded-full mx-auto" style={{ backgroundColor: primaryColorFaded }} />
       </header>
 
       <main className="w-full max-w-md space-y-7">
@@ -162,7 +164,7 @@ export default function ExplorarProfesionalesPage() {
         <div className="space-y-3">
           {loading ? (
             <div className="flex justify-center py-14">
-              <Loader2 size={26} className="animate-spin" style={{ color: colors.primary }} />
+              <Loader2 size={26} className="animate-spin" style={{ color: primaryColor }} />
             </div>
           ) : filtradas.length === 0 ? (
             <div className="text-center py-14">
@@ -172,7 +174,7 @@ export default function ExplorarProfesionalesPage() {
           ) : (
             filtradas.map((empresa) => {
               const esActual = empresa.id === profile?.empresaId;
-              const ePrimary = empresa.color_primary || colors.primary;
+              const ePrimary = empresa.color_primary || primaryColor;
               const eSecondary = empresa.color_secondary || colors.textSecondary;
               const eBg = empresa.color_background || '#ffffff';
               return (
@@ -252,7 +254,7 @@ export default function ExplorarProfesionalesPage() {
               className="w-full p-5 rounded-xl border-2 border-dashed flex items-center justify-center gap-2.5 transition-all duration-200"
               style={{ borderColor: colors.borderLight }}
             >
-              <PlusCircle size={18} style={{ color: colors.primaryLight }} />
+              <PlusCircle size={18} style={{ color: primaryColorLight }} />
               <span className="font-medium text-sm lowercase" style={{ color: colors.textMuted }}>vincular otro centro</span>
             </button>
           )}
@@ -261,9 +263,9 @@ export default function ExplorarProfesionalesPage() {
         {/* Footer */}
         <footer className="pt-8 text-center">
           <button
-            onClick={() => router.push('/cliente')}
+            onClick={() => router.push(`/${brand}/${subdominio}/cliente`)}
             className="inline-block text-sm font-semibold tracking-wide lowercase hover:underline underline-offset-4 transition-all"
-            style={{ color: colors.primary }}
+            style={{ color: primaryColor }}
           >
           </button>
         </footer>
@@ -283,7 +285,7 @@ export default function ExplorarProfesionalesPage() {
           <Home size={22} style={{ color: colors.textSecondary }} />
         </button>
         <button>
-          <Briefcase size={22} style={{ color: colors.primary }} />
+          <Briefcase size={22} style={{ color: primaryColor }} />
         </button>
         <button onClick={() => router.push(`/${brand}/${subdominio}/cliente/perfil`)}>
           <User size={22} style={{ color: colors.textSecondary }} />

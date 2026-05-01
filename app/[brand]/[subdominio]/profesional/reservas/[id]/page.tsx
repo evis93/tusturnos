@@ -17,6 +17,7 @@ function formatearFechaHora(iso: string) {
 
 function Fila({ label, valor }: { label: string; valor: React.ReactNode }) {
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
   return (
     <div className="flex justify-between items-start py-3 border-b last:border-0" style={{ borderColor: '#f3f4f6' }}>
       <span className="text-sm" style={{ color: colors.textSecondary }}>{label}</span>
@@ -47,14 +48,14 @@ export default function DetalleReservaPage() {
 
   if (loading) return (
     <div className="flex justify-center py-16">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
     </div>
   );
 
   if (!reserva) return (
     <div className="p-6 text-center">
       <p style={{ color: colors.textSecondary }}>Reserva no encontrada</p>
-      <button onClick={() => router.back()} className="mt-4 text-sm underline" style={{ color: colors.primary }}>
+      <button onClick={() => router.back()} className="mt-4 text-sm underline" style={{ color: primaryColor }}>
         Volver
       </button>
     </div>

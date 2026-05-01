@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useSucursal } from '@/src/context/SucursalContext';
@@ -25,13 +25,18 @@ function fechaISO(date: Date) {
 
 export default function ReservarPage() {
   const router = useRouter();
+  const params = useParams();
+  const brand = params.brand as string;
+  const subdominio = params.subdominio as string;
   const searchParams = useSearchParams();
   const cambiarId = searchParams.get('cambiarId');
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
+  const backgroundColor = profile?.colorBackground || colors.background;
   const { sucursalActiva } = useSucursal();
 
-  const color = profile?.colorPrimario || colors.primary;
+  const color = profile?.colorPrimario || primaryColor;
 
   const [profesionales, setProfesionales] = useState<any[]>([]);
   const [servicios, setServicios] = useState<any[]>([]);
@@ -131,7 +136,7 @@ export default function ReservarPage() {
         ? '¡Cambio solicitado! Cuando el centro confirme el nuevo horario, el turno anterior quedará cancelado automáticamente.'
         : '¡Solicitud enviada! Tu turno fue solicitado. El centro lo confirmará a la brevedad.';
       window.alert(msg);
-      router.replace('/cliente');
+      router.replace(`/${brand}/${subdominio}/cliente`);
     } else {
       window.alert('Error: ' + (res.error || 'No se pudo enviar la solicitud.'));
     }
@@ -141,7 +146,7 @@ export default function ReservarPage() {
 
   if (cargandoDatos) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: '#f8fbff' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor }}>
         <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: color }} />
         <p className="text-sm text-gray-400">Cargando información...</p>
       </div>
@@ -149,10 +154,10 @@ export default function ReservarPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8fbff' }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor }}>
       {/* Header */}
       <header className="flex items-center gap-3 px-4 py-4 text-white" style={{ backgroundColor: color }}>
-        <button onClick={() => router.replace('/cliente')} className="text-white text-xl">‹</button>
+        <button onClick={() => router.replace(`/${brand}/${subdominio}/cliente`)} className="text-white text-xl">‹</button>
         <h1 className="text-base font-bold">{cambiarId ? 'Elegí el nuevo horario' : (profile?.empresaNombre || 'Reservar turno')}</h1>
       </header>
 

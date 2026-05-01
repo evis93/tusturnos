@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import * as catalogoActions from '@/src/actions/catalogo';
 
@@ -15,7 +16,10 @@ export default function CatalogoClient({ categorias, servicios: initialServicios
   const params = useParams();
   const brand = params.brand as string;
   const subdominio = params.subdominio as string;
+  const { profile } = useAuth();
   const { colors, empresaNombre } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
+  const backgroundColor = profile?.colorBackground || colors.background;
 
   const [categoriaActiva, setCategoriaActiva] = useState('todos');
   const [servicios, setServicios] = useState(initialServicios);
@@ -30,11 +34,11 @@ export default function CatalogoClient({ categorias, servicios: initialServicios
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8fbff' }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor }}>
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-blue-50">
         <Link href={`/${brand}/${subdominio}`} className="w-8 h-8 flex items-center justify-center text-gray-600">‹</Link>
-        <span className="text-lg font-bold" style={{ color: colors.primary }}>
+        <span className="text-lg font-bold" style={{ color: primaryColor }}>
           {empresaNombre || 'catálogo'}
         </span>
         <div className="w-8" />
@@ -49,7 +53,7 @@ export default function CatalogoClient({ categorias, servicios: initialServicios
               onClick={() => handleCategoryChange(cat.id)}
               className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors"
               style={categoriaActiva === cat.id
-                ? { backgroundColor: colors.primary, color: '#fff' }
+                ? { backgroundColor: primaryColor, color: '#fff' }
                 : { backgroundColor: '#fff', color: '#64748b', border: '1px solid #d0e8f5' }
               }
             >
@@ -63,7 +67,7 @@ export default function CatalogoClient({ categorias, servicios: initialServicios
       <div className="flex-1 px-4 pt-2 pb-6 space-y-4">
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
           </div>
         ) : (
           servicios.map((svc: any) => (
@@ -73,7 +77,7 @@ export default function CatalogoClient({ categorias, servicios: initialServicios
               )}
               <div className="p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: colors.primaryFaded, color: colors.primary }}>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: primaryColorFaded, color: primaryColor }}>
                     {svc.categoria_label}
                   </span>
                   <span className="text-xs text-yellow-500">★ {svc.rating}</span>
@@ -82,12 +86,12 @@ export default function CatalogoClient({ categorias, servicios: initialServicios
                 <p className="text-xs text-gray-500 mb-3">{svc.descripcion}</p>
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-lg font-bold" style={{ color: colors.primary }}>${svc.precio}</span>
+                    <span className="text-lg font-bold" style={{ color: primaryColor }}>${svc.precio}</span>
                     <span className="text-xs text-gray-400 ml-1">· {svc.duracion_minutos} min</span>
                   </div>
                   <Link href={`/${brand}/${subdominio}/auth/login`}
                     className="px-4 py-2 rounded-xl text-sm font-bold text-white"
-                    style={{ backgroundColor: colors.primary }}>
+                    style={{ backgroundColor: primaryColor }}>
                     {svc.accion === 'reservar' ? 'reservar' : 'consultar'}
                   </Link>
                 </div>

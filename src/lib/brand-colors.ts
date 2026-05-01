@@ -19,13 +19,13 @@ export const BRAND_DEFAULTS: Record<BrandType, BrandColors> = {
     primary: '#3498db',
     secondary: '#00d2ff',
     background: '#f8fbff',
-    logo: '/images/logoMensana.png',
+    logo: '/logos/logoMensana.png',
   },
   tusturnos: {
     primary: '#005f9d',
     secondary: '#0679c4',
     background: '#f7f9fb',
-    logo: '/images/logoturnos.png',
+    logo: '/logos/logoturnos.png',
   },
 };
 

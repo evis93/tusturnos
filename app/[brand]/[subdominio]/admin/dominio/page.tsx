@@ -37,6 +37,7 @@ interface EmpresaData {
 export default function DominioPage() {
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const [step, setStep] = useState<Step>('loading');
   const [empresa, setEmpresa] = useState<EmpresaData | null>(null);
@@ -129,7 +130,7 @@ export default function DominioPage() {
   if (step === 'loading') {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
       </div>
     );
   }
@@ -204,7 +205,7 @@ export default function DominioPage() {
           <button
             type="submit"
             className="w-full py-3 rounded-xl text-white font-bold text-sm"
-            style={{ backgroundColor: colors.primary }}
+            style={{ backgroundColor: primaryColor }}
           >
             2. verificar y activar dominio
           </button>
@@ -214,7 +215,7 @@ export default function DominioPage() {
       {/* ── Verificando ──────────────────────────────────────────────── */}
       {step === 'verifying' && (
         <div className="flex flex-col items-center gap-4 py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: colors.primary }} />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: primaryColor }} />
           <p className="text-sm text-gray-500">verificando DNS de {domain}…</p>
         </div>
       )}
@@ -236,7 +237,7 @@ export default function DominioPage() {
           <button
             onClick={handleEdit}
             className="w-full py-3 rounded-xl text-sm font-bold border-2"
-            style={{ borderColor: colors.primary, color: colors.primary }}
+            style={{ borderColor: primaryColor, color: primaryColor }}
           >
             reintentar verificación
           </button>
@@ -246,7 +247,7 @@ export default function DominioPage() {
       {/* ── Guardando ────────────────────────────────────────────────── */}
       {step === 'saving' && (
         <div className="flex flex-col items-center gap-4 py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: colors.primary }} />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: primaryColor }} />
           <p className="text-sm text-gray-500">activando dominio…</p>
         </div>
       )}
@@ -306,7 +307,7 @@ export default function DominioPage() {
           <button
             onClick={handleEdit}
             className="w-full py-3 rounded-xl text-sm font-bold border-2"
-            style={{ borderColor: colors.primary, color: colors.primary }}
+            style={{ borderColor: primaryColor, color: primaryColor }}
           >
             volver a intentar
           </button>

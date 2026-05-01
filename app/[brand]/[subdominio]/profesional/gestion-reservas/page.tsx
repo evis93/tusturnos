@@ -20,6 +20,7 @@ function formatearFecha(fecha: string) {
 export default function GestionReservasPage() {
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const [activeTab, setActiveTab] = useState(0);
   const [reservas, setReservas] = useState<any[]>([]);
@@ -94,7 +95,7 @@ export default function GestionReservasPage() {
                 key={tab}
                 onClick={() => setActiveTab(i)}
                 className={clsx('flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition', activeTab === i ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700')}
-                style={activeTab === i ? { color: colors.primary } : {}}
+                style={activeTab === i ? { color: primaryColor } : {}}
               >
                 {tab}
                 {count > 0 && (
@@ -113,7 +114,7 @@ export default function GestionReservasPage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
         </div>
       ) : reservasFiltradas.length === 0 ? (
         <div className="text-center py-16">
@@ -126,7 +127,7 @@ export default function GestionReservasPage() {
             <div
               key={reserva.id}
               className="bg-white rounded-xl border p-4"
-              style={{ borderColor: colors.border, borderLeft: `4px solid ${colors.primary}` }}
+              style={{ borderColor: colors.border, borderLeft: `4px solid ${primaryColor}` }}
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -138,12 +139,12 @@ export default function GestionReservasPage() {
                     {reserva.profesional?.nombre ? ` · ${reserva.profesional.nombre}` : ''}
                   </p>
                   {(reserva.servicio || reserva.tipo_sesion) && (
-                    <p className="text-xs mt-0.5 font-medium" style={{ color: colors.primary }}>
+                    <p className="text-xs mt-0.5 font-medium" style={{ color: primaryColor }}>
                       {reserva.servicio || reserva.tipo_sesion}
                     </p>
                   )}
                   {reserva.precio_total != null && (
-                    <p className="text-sm font-medium mt-1" style={{ color: colors.primary }}>
+                    <p className="text-sm font-medium mt-1" style={{ color: primaryColor }}>
                       ${reserva.precio_total}
                     </p>
                   )}
@@ -177,7 +178,7 @@ export default function GestionReservasPage() {
 <button
                     onClick={() => setPagoModal({ open: true, reserva })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-                    style={{ background: colors.primary }}
+                    style={{ background: primaryColor }}
                   >
                     💰 Registrar pago
                   </button>

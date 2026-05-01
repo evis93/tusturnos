@@ -10,6 +10,7 @@ import TelefonoInput from '@/src/components/ui/TelefonoInput';
 export default function ProfesionalesPage() {
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const [profesionales, setProfesionales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +84,7 @@ export default function ProfesionalesPage() {
         <button
           onClick={abrirCrear}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-          style={{ background: colors.primary }}
+          style={{ background: primaryColor }}
         >
           <Plus size={16} /> Agregar
         </button>
@@ -91,7 +92,7 @@ export default function ProfesionalesPage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
         </div>
       ) : profesionales.length === 0 ? (
         <div className="text-center py-16">
@@ -104,7 +105,7 @@ export default function ProfesionalesPage() {
             <div key={prof.id} className="bg-white rounded-xl border p-4 flex items-center gap-4" style={{ borderColor: colors.border }}>
               <div
                 className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                style={{ background: colors.primary }}
+                style={{ background: primaryColor }}
               >
                 {prof.nombre_completo?.charAt(0)?.toUpperCase() || '?'}
               </div>
@@ -116,7 +117,7 @@ export default function ProfesionalesPage() {
               </div>
               <div className="flex gap-2 flex-shrink-0">
                 <button onClick={() => abrirEditar(prof)} className="p-2 rounded-lg hover:bg-gray-100 transition">
-                  <Pencil size={16} style={{ color: colors.primary }} />
+                  <Pencil size={16} style={{ color: primaryColor }} />
                 </button>
                 <button onClick={() => handleDesactivar(prof.id)} className="p-2 rounded-lg hover:bg-red-50 transition">
                   <UserX size={16} className="text-red-500" />
@@ -181,7 +182,7 @@ export default function ProfesionalesPage() {
                 onClick={handleGuardar}
                 disabled={guardando}
                 className="flex-1 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-60"
-                style={{ background: colors.primary }}
+                style={{ background: primaryColor }}
               >
                 {guardando ? 'Guardando...' : 'Guardar'}
               </button>

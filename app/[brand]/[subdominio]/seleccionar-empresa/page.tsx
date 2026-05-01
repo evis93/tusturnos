@@ -1,7 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useAuth } from '../context/AuthContext';
+import { useRouter, useParams } from 'next/navigation';
+import { useAuth } from '@/src/context/AuthContext';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useState } from 'react';
 
 const ROL_LABEL: Record<string, string> = {
   superadmin: 'administrador general',
@@ -10,10 +12,10 @@ const ROL_LABEL: Record<string, string> = {
   cliente: 'consultante',
 };
 
-function rutaPorRol(rol: string): string {
-  if (rol === 'admin' || rol === 'superadmin') return '/admin/agenda';
-  if (rol === 'profesional') return '/profesional/agenda';
-  return '/cliente';
+function rutaPorRol(rol: string, brand: string, subdominio: string): string {
+  if (rol === 'admin' || rol === 'superadmin') return `/${brand}/${subdominio}/admin/gestion-reservas`;
+  if (rol === 'profesional') return `/${brand}/${subdominio}/profesional`;
+  return `/${brand}/${subdominio}/cliente`;
 }
 
 function Spinner() {
@@ -24,9 +26,16 @@ function Spinner() {
   );
 }
 
-export default function SelectorEmpresas() {
+export default function SeleccionarEmpresaPage() {
   const router = useRouter();
+  const params = useParams();
+  const brand = params.brand as string;
+  const subdominio = params.subdominio as string;
   const { profile, loading: authLoading, setActiveEmpresa, logout } = useAuth();
+  const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
+  const backgroundColor = profile?.colorBackground || 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)';
+  const [showLogout, setShowLogout] = useState(false);
 
   if (authLoading || !profile) return <Spinner />;
 
@@ -42,12 +51,12 @@ export default function SelectorEmpresas() {
       colorBackground: sucursal.colorBackground,
       logoUrl: sucursal.logoUrl,
     });
-    router.replace(rutaPorRol(profile.rol || ''));
+    router.replace(rutaPorRol(profile.rol || '', brand, subdominio));
   };
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/auth/login');
+    router.replace(`/${brand}/${subdominio}/auth/login`);
   };
 
   const nombreCorto = profile?.nombre_completo?.split(' ')[0]?.toLowerCase() || '';
@@ -64,10 +73,10 @@ export default function SelectorEmpresas() {
   return (
     <div
       className="min-h-screen flex flex-col items-center px-6 py-12 md:py-20"
-      style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)' }}
+      style={{ background: backgroundColor }}
     >
       <header className="w-full max-w-2xl mb-12 text-center">
-        <h1 className="text-2xl font-bold tracking-tight lowercase mb-2" style={{ color: '#43b9e5' }}>
+        <h1 className="text-2xl font-bold tracking-tight lowercase mb-2" style={{ color: primaryColor }}>
           mensana
         </h1>
         <div className="h-1 w-8 mx-auto rounded-full" style={{ backgroundColor: 'rgba(67,185,229,0.2)' }} />
@@ -89,23 +98,11 @@ export default function SelectorEmpresas() {
               no tenés sucursales asignadas
             </p>
           ) : (
-            Object.entries(sucursalesPorEmpresa).map(([empresaId, data]: any) => {
-              const primeraEmpresa = data.sucursales?.[0];
-              const colorPrimario = primeraEmpresa?.colorPrimario || '#43b9e5';
-              return (
+            Object.entries(sucursalesPorEmpresa).map(([empresaId, data]: any) => (
               <div key={empresaId} className="space-y-3">
-                <div className="flex items-center gap-3">
-                  {primeraEmpresa?.logoUrl && (
-                    <img
-                      src={primeraEmpresa.logoUrl}
-                      alt={data.nombre}
-                      className="h-8 w-8 object-contain rounded"
-                    />
-                  )}
-                  <h3 className="text-sm font-semibold uppercase tracking-widest" style={{ color: colorPrimario }}>
-                    {data.nombre}
-                  </h3>
-                </div>
+                <h3 className="text-sm font-semibold uppercase tracking-widest" style={{ color: '#6a8180' }}>
+                  {data.nombre}
+                </h3>
                 <div className="space-y-2">
                   {data.sucursales.map((sucursal: any) => (
                     <button
@@ -144,15 +141,14 @@ export default function SelectorEmpresas() {
                   ))}
                 </div>
               </div>
-              );
-            })
+            ))
           )}
         </div>
 
         <footer className="pt-12 text-center">
           <div className="pt-4 flex items-center justify-center gap-8">
             <button
-              onClick={handleLogout}
+              onClick={() => setShowLogout(!showLogout)}
               className="flex flex-col items-center gap-1 group"
             >
               <div
@@ -171,6 +167,23 @@ export default function SelectorEmpresas() {
               </span>
             </button>
           </div>
+          {showLogout && (
+            <div className="mt-6 p-4 bg-white rounded-lg shadow-lg">
+              <p className="text-sm mb-3" style={{ color: '#6a8180' }}>
+                ¿Seguro que deseas salir?
+              </p>
+              <button
+                onClick={handleLogout}
+                className="w-full px-4 py-2 rounded-lg text-sm font-medium transition"
+                style={{
+                  background: '#dc2626',
+                  color: '#fff',
+                }}
+              >
+                Sí, salir
+              </button>
+            </div>
+          )}
         </footer>
       </main>
     </div>

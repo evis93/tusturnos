@@ -12,6 +12,9 @@ export default function RecuperarContrasenaPage() {
   const brand = params.brand as string;
   const subdominio = params.subdominio as string;
   const { colors } = useTheme();
+  const primaryColor = colors.primary;
+  const primaryColorLight = colors.primaryLight || `${primaryColor}0D`;
+  const primaryColorFaded = colors.primaryFaded || `${primaryColor}1A`;
 
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,19 +42,19 @@ export default function RecuperarContrasenaPage() {
   return (
     <div
       className="relative flex min-h-screen w-full flex-col items-center justify-center p-4"
-      style={{ background: `linear-gradient(180deg, ${colors.primaryLight} 0%, ${colors.primaryFaded} 100%)` }}
+      style={{ background: `linear-gradient(180deg, ${primaryColorLight} 0%, ${primaryColorFaded} 100%)` }}
     >
       {/* Blobs de fondo */}
-      <div className="fixed top-20 left-20 w-64 h-64 rounded-full blur-3xl -z-10" style={{ background: `${colors.primary}0D` }} />
-      <div className="fixed bottom-20 right-20 w-96 h-96 rounded-full blur-3xl -z-10" style={{ background: `${colors.primary}1A` }} />
+      <div className="fixed top-20 left-20 w-64 h-64 rounded-full blur-3xl -z-10" style={{ background: `${primaryColor}0D` }} />
+      <div className="fixed bottom-20 right-20 w-96 h-96 rounded-full blur-3xl -z-10" style={{ background: `${primaryColor}1A` }} />
 
       <div
         className="w-full max-w-[440px] bg-white rounded-xl p-8 flex flex-col items-center"
-        style={{ boxShadow: `0 10px 40px -10px ${colors.primary}26` }}
+        style={{ boxShadow: `0 10px 40px -10px ${primaryColor}26` }}
       >
         {/* Logo */}
         <div className="mb-10">
-          <h1 className="text-2xl font-bold tracking-tight lowercase" style={{ color: colors.primary }}>
+          <h1 className="text-2xl font-bold tracking-tight lowercase" style={{ color: primaryColor }}>
             mensana
           </h1>
         </div>
@@ -59,8 +62,8 @@ export default function RecuperarContrasenaPage() {
         {sent ? (
           /* Estado: enviado */
           <div className="flex flex-col items-center text-center gap-4 w-full">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-2" style={{ background: colors.primaryFaded }}>
-              <Mail size={32} style={{ color: colors.primary }} />
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-2" style={{ background: primaryColorFaded }}>
+              <Mail size={32} style={{ color: primaryColor }} />
             </div>
             <h2 className="text-slate-900 text-2xl font-bold leading-tight lowercase">revisá tu correo</h2>
             <p className="text-slate-500 text-base leading-relaxed lowercase">
@@ -70,7 +73,7 @@ export default function RecuperarContrasenaPage() {
             <Link
               href={`/${brand}/${subdominio}/auth/login`}
               className="mt-6 flex items-center gap-1 text-sm font-semibold lowercase transition-colors"
-              style={{ color: colors.primary }}
+              style={{ color: primaryColor }}
             >
               <ChevronLeft size={18} />
               volver al inicio de sesión
@@ -93,7 +96,7 @@ export default function RecuperarContrasenaPage() {
                   <Mail
                     size={20}
                     className="absolute left-4 top-1/2 -translate-y-1/2"
-                    style={{ color: `${colors.primary}99` }}
+                    style={{ color: `${primaryColor}99` }}
                   />
                   <input
                     type="email"
@@ -103,11 +106,11 @@ export default function RecuperarContrasenaPage() {
                     placeholder="ejemplo@correo.com"
                     className="w-full h-14 pl-12 pr-4 rounded-xl border text-slate-900 focus:outline-none focus:ring-2 transition-all placeholder:text-slate-400 lowercase"
                     style={{
-                      borderColor: `${colors.primary}1A`,
-                      background: `${colors.primaryFaded}`,
+                      borderColor: `${primaryColor}1A`,
+                      background: `${primaryColorFaded}`,
                     }}
-                    onFocus={e => { e.currentTarget.style.borderColor = colors.primary; }}
-                    onBlur={e => { e.currentTarget.style.borderColor = `${colors.primary}1A`; }}
+                    onFocus={e => { e.currentTarget.style.borderColor = primaryColor; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = `${primaryColor}1A`; }}
                   />
                 </div>
               </div>
@@ -121,8 +124,8 @@ export default function RecuperarContrasenaPage() {
                 disabled={loading}
                 className="w-full h-14 text-white rounded-xl font-bold text-base tracking-wide transition-all flex items-center justify-center gap-2 lowercase disabled:opacity-60"
                 style={{
-                  backgroundColor: colors.primary,
-                  boxShadow: `0 10px 40px -10px ${colors.primary}66`,
+                  backgroundColor: primaryColor,
+                  boxShadow: `0 10px 40px -10px ${primaryColor}66`,
                 }}
               >
                 {loading ? 'enviando...' : (
@@ -134,15 +137,15 @@ export default function RecuperarContrasenaPage() {
             {/* Ícono decorativo */}
             <div className="mt-12 mb-8 flex justify-center">
               <div className="relative w-24 h-24 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full blur-2xl" style={{ background: `${colors.primary}0D` }} />
-                <Mail size={64} className="relative" style={{ color: `${colors.primary}66` }} />
+                <div className="absolute inset-0 rounded-full blur-2xl" style={{ background: `${primaryColor}0D` }} />
+                <Mail size={64} className="relative" style={{ color: `${primaryColor}66` }} />
               </div>
             </div>
 
             <Link
               href={`/${brand}/${subdominio}/auth/login`}
               className="flex items-center gap-1 text-sm font-semibold lowercase transition-colors"
-              style={{ color: colors.primary }}
+              style={{ color: primaryColor }}
             >
               <ChevronLeft size={18} />
               volver al inicio de sesión

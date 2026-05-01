@@ -25,6 +25,7 @@ function formatearFechaHora(iso: string) {
 export default function ReservasProfesionalPage() {
   const { profile } = useAuth();
   const { colors }  = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const [reservas, setReservas]   = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -70,7 +71,7 @@ export default function ReservasProfesionalPage() {
               'flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition',
               activeTab === i ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
             )}
-            style={activeTab === i ? { color: colors.primary } : {}}
+            style={activeTab === i ? { color: primaryColor } : {}}
           >
             {tab.label}
             {i === 0 && pendientesCount > 0 && (
@@ -85,7 +86,7 @@ export default function ReservasProfesionalPage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
         </div>
       ) : filtradas.length === 0 ? (
         <div className="text-center py-16">
@@ -98,7 +99,7 @@ export default function ReservasProfesionalPage() {
             <div
               key={r.id}
               className="bg-white rounded-xl border p-4"
-              style={{ borderColor: colors.border, borderLeft: `4px solid ${colors.primary}` }}
+              style={{ borderColor: colors.border, borderLeft: `4px solid ${primaryColor}` }}
             >
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex-1 min-w-0">

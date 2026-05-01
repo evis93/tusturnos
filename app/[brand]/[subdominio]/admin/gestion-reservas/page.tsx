@@ -32,6 +32,8 @@ function claveOrden(r: any): string {
 export default function GestionReservasPage() {
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || colors.primary;
+  const backgroundColor = profile?.colorBackground || colors.background;
 
   const [activeTab, setActiveTab] = useState(0);
   const [reservas, setReservas] = useState<any[]>([]);
@@ -102,7 +104,7 @@ export default function GestionReservasPage() {
   const [profesionales] = useState<any[]>([]);
 
   return (
-    <div className="p-6">
+    <div className="p-6" style={{ backgroundColor }}>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold" style={{ color: colors.text }}>Gestión de Reservas</h1>
         <button onClick={cargarReservas} className="p-2 rounded-lg hover:bg-gray-100 transition">
@@ -120,7 +122,7 @@ export default function GestionReservasPage() {
               onClick={() => setActiveTab(i)}
               className={clsx('flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition',
                 activeTab === i ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700')}
-              style={activeTab === i ? { color: colors.primary } : {}}
+              style={activeTab === i ? { color: primaryColor } : {}}
             >
               {tab}
               {count > 0 && (
@@ -136,7 +138,7 @@ export default function GestionReservasPage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
         </div>
       ) : reservasFiltradas.length === 0 ? (
         <div className="text-center py-16">
@@ -161,7 +163,7 @@ export default function GestionReservasPage() {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate" style={{ color: colors.text }}>{nombre}</p>
-                    <p className="text-sm font-medium mt-0.5" style={{ color: colors.primary }}>
+                    <p className="text-sm font-medium mt-0.5" style={{ color: primaryColor }}>
                       📅 {formatearFecha(reserva.fecha)} · {hora}hs
                     </p>
                     {profesional && (
@@ -171,7 +173,7 @@ export default function GestionReservasPage() {
                       <p className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>🗂 {servicio}</p>
                     )}
                     {reserva.precio_total != null && (
-                      <p className="text-sm font-bold mt-1" style={{ color: colors.primary }}>
+                      <p className="text-sm font-bold mt-1" style={{ color: primaryColor }}>
                         ${Number(reserva.precio_total).toLocaleString('es-AR')}
                       </p>
                     )}
@@ -219,7 +221,7 @@ export default function GestionReservasPage() {
                       <button
                         onClick={() => setPagoModal({ open: true, reserva })}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-                        style={{ background: colors.primary }}
+                        style={{ background: primaryColor }}
                       >
                         💰 Registrar pago
                       </button>

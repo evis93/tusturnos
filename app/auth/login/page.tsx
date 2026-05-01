@@ -113,7 +113,7 @@ export default function LoginPage() {
                 flexShrink: 0,
               }}>
                 <Image
-                  src="/images/logoturnos.png"
+                  src="/logos/logoturnos.png"
                   alt="TusTurnos"
                   width={90}
                   height={90}
@@ -179,7 +179,7 @@ export default function LoginPage() {
           >
             {/* Header móvil */}
             <div className="mobile-header" style={{ alignItems: 'center', gap: '0.75rem', marginBottom: '3rem' }}>
-              <Image src="/images/logoturnos.png" alt="TusTurnos" width={140} height={42} style={{ objectFit: 'contain' }} />
+              <Image src="/logos/logoturnos.png" alt="TusTurnos" width={140} height={42} style={{ objectFit: 'contain' }} />
             </div>
 
             <div style={{ maxWidth: '28rem', margin: '0 auto', width: '100%' }}>

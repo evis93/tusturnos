@@ -34,13 +34,12 @@ interface ThemeContextType {
   loading: boolean;
 }
 
-const DEFAULT_LOGO = '/images/logoturnos.png';
+const DEFAULT_LOGO = '/logos/logoturnos.png';
 
-// Logos locales por empresa — evita depender del archivo en Supabase Storage
 const LOCAL_LOGOS: Record<string, string> = {
-  monalisa: '/images/Logo-corporeo-monalisa.png',
-  'arte urbano': '/images/logo_palabra_arte_urbano.png',
-  arturbano: '/images/logo_palabra_arte_urbano.png',
+  monalisa: '/logos/Logo-corporeo-monalisa.png',
+  'arte urbano': '/logos/logo_palabra_arte_urbano.png',
+  arturbano: '/logos/logo_palabra_arte_urbano.png',
 };
 
 function resolveLogoUrl(empresaNombre: string | null | undefined, dbLogoUrl: string | null | undefined): string | null {
@@ -50,7 +49,7 @@ function resolveLogoUrl(empresaNombre: string | null | undefined, dbLogoUrl: str
       if (lower.includes(key)) return path;
     }
   }
-  return dbLogoUrl || null;
+  return dbLogoUrl || DEFAULT_LOGO;
 }
 
 const DEFAULT_COLORS: Colors = {
@@ -120,7 +119,9 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       return { themeId: 'loading', colors: DEFAULT_COLORS, logoUrl: null, empresaNombre: null, loading: true };
     }
 
-    if (profile?.empresaId) {
+    // Los admins siempre usan colores por defecto (neutrales)
+    // Los clientes/profesionales usan colores de la empresa
+    if (profile?.empresaId && !profile.esAdmin) {
       const primary = (profile.colorPrimario || DEFAULT_COLORS.primary).trim();
       const secondary = (profile.colorSecundario || DEFAULT_COLORS.secondary).trim();
       const background = (profile.colorBackground || DEFAULT_COLORS.background).trim();

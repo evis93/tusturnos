@@ -16,8 +16,8 @@ function Initials({ nombre, colors }: { nombre: string; colors: any }) {
     .join('')
     .toUpperCase();
   return (
-    <div style={{ width: 44, height: 44, borderRadius: 22, background: colors.primaryFaded, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <span style={{ fontSize: 16, fontWeight: 700, color: colors.primary }}>{initials}</span>
+    <div style={{ width: 44, height: 44, borderRadius: 22, background: primaryColorFaded, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <span style={{ fontSize: 16, fontWeight: 700, color: primaryColor }}>{initials}</span>
     </div>
   );
 }
@@ -29,6 +29,7 @@ export default function ClientesPage() {
   const router = useRouter();
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,7 +135,7 @@ export default function ClientesPage() {
     <button
       onClick={onChange}
       className="relative inline-flex h-5 w-9 rounded-full transition-colors"
-      style={{ background: value ? colors.primary : colors.borderLight }}
+      style={{ background: value ? primaryColor : colors.borderLight }}
     >
       <span
         className="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5"
@@ -150,7 +151,7 @@ export default function ClientesPage() {
         <button
           onClick={abrirModalAlta}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-          style={{ background: colors.primary }}
+          style={{ background: primaryColor }}
         >
           <UserPlus size={16} /> Agregar
         </button>
@@ -183,7 +184,7 @@ export default function ClientesPage() {
       {/* Lista */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
         </div>
       ) : clientesFiltrados.length === 0 ? (
         <div className="text-center py-16">
@@ -194,7 +195,7 @@ export default function ClientesPage() {
         <div className="space-y-2">
           {buscando && (
             <div className="flex justify-center py-2">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2" style={{ borderColor: colors.primary }} />
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2" style={{ borderColor: primaryColor }} />
             </div>
           )}
           {clientesFiltrados.map((cliente: any) => (
@@ -219,10 +220,10 @@ export default function ClientesPage() {
                   <button
                     onClick={() => router.push(`/${brand}/${subdominio}/admin/clientes/${cliente.id}`)}
                     className="p-2 rounded-lg transition"
-                    style={{ background: colors.primaryFaded }}
+                    style={{ background: primaryColorFaded }}
                     title="Ver ficha"
                   >
-                    <FolderOpen size={16} style={{ color: colors.primary }} />
+                    <FolderOpen size={16} style={{ color: primaryColor }} />
                   </button>
                 )}
                 <button onClick={() => handleEditar(cliente)} className="p-2 rounded-lg hover:bg-gray-100 transition" title="Editar">
@@ -255,7 +256,7 @@ export default function ClientesPage() {
             {errorEdit && <p className="text-xs text-red-500 mb-3">{errorEdit}</p>}
             <div className="flex gap-3">
               <button onClick={() => setModalEdit(false)} className="flex-1 py-2.5 rounded-xl border text-sm font-medium" style={{ borderColor: colors.border, color: colors.text }}>Cancelar</button>
-              <button onClick={handleGuardar} disabled={guardando} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-60" style={{ background: colors.primary }}>
+              <button onClick={handleGuardar} disabled={guardando} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-60" style={{ background: primaryColor }}>
                 {guardando ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
@@ -287,7 +288,7 @@ export default function ClientesPage() {
             {errorAlta && <p className="text-xs text-red-500 mb-3">{errorAlta}</p>}
             <div className="flex gap-3">
               <button onClick={() => setModalAlta(false)} className="flex-1 py-2.5 rounded-xl border text-sm font-medium" style={{ borderColor: colors.border, color: colors.text }}>Cancelar</button>
-              <button onClick={handleCrearCliente} disabled={creando} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-60" style={{ background: colors.primary }}>
+              <button onClick={handleCrearCliente} disabled={creando} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-60" style={{ background: primaryColor }}>
                 {creando ? 'Creando...' : 'Crear'}
               </button>
             </div>

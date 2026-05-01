@@ -26,6 +26,7 @@ interface AuthContextType {
   setActiveEmpresa: (data: ActiveEmpresaData) => void;
   rol: string | null;
   empresaId: string | null;
+  totalSucursales: number | null;
   isAdmin: boolean;
   isProfesional: boolean;
   isCliente: boolean;
@@ -44,6 +45,7 @@ const AuthContext = createContext<AuthContextType>({
   setActiveEmpresa: () => {},
   rol: null,
   empresaId: null,
+  totalSucursales: null,
   isAdmin: false,
   isProfesional: false,
   isCliente: false,
@@ -67,21 +69,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { retry = true } = options;
 
     try {
+      const { fetchSessionContext } = await import('../actions/fetch-session-context');
       const queryTimeout = (promise: Promise<any>) =>
         Promise.race([
           promise,
           new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 15000)),
         ]);
 
-      const { data: filas, error } = await queryTimeout(
-        supabase.from('v_sesion_contexto').select('*') as unknown as Promise<any>
-      );
-
-      if (error) {
-        console.error('[AuthContext] Error fetching v_sesion_contexto:', error);
-        setLoading(false);
-        return;
-      }
+      const filas = await queryTimeout(fetchSessionContext(authUserId));
 
       // Sin filas: puede ser usuario recién creado — reintentar una vez con delay
       if (!filas || filas.length === 0) {
@@ -102,6 +97,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const rol = data.rol_codigo || null;
 
+      const sucursalesDisponibles = filas.map((fila: any) => ({
+        sucursalId: fila.sucursal_id,
+        sucursalNombre: fila.sucursal_nombre,
+        empresaId: fila.empresa_id,
+        empresaNombre: fila.empresa_nombre,
+        direccion: fila.direccion,
+        location: fila.location,
+        rolId: fila.rol_id,
+        totalSucursalesUsuario: fila.total_sucursales_usuario,
+        totalEmpresasUsuario: fila.total_empresas_usuario,
+        sucursalesPorEmpresa: fila.sucursales_por_empresa,
+      }));
+
+      const totalSucursales = filas[0]?.total_sucursales_usuario || 0;
+
       setProfile({
         usuarioId: data.usuario_id,
         authUserId: data.auth_user_id,
@@ -110,15 +120,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         rol,
         empresaId: data.empresa_id,
         empresaNombre: data.empresa_nombre,
+        colorPrimario: data.color_primary,
+        colorSecundario: data.color_secondary,
+        colorBackground: data.color_background,
+        logoUrl: data.logo_url,
+        sucursalId: data.sucursal_id,
+        sucursalNombre: data.sucursal_nombre,
         profesionalId: ['admin', 'profesional', 'superadmin'].includes(rol) ? data.usuario_id : null,
         esAdmin: rol === 'admin' || rol === 'superadmin',
         esProfesional: rol === 'profesional' || rol === 'admin' || rol === 'superadmin',
         esCliente: rol === 'cliente',
         esMensana: rol === 'superadmin',
-        colorPrimario: data.color_primary,
-        colorSecundario: data.color_secondary,
-        colorBackground: data.color_background,
-        logoUrl: data.logo_url,
+        sucursalesDisponibles,
+        totalSucursales,
       });
     } catch (error: any) {
       console.error('[AuthContext] Error fetching profile:', error);
@@ -283,6 +297,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setActiveEmpresa,
         rol: profile?.rol ?? null,
         empresaId: profile?.empresaId ?? null,
+        totalSucursales: profile?.totalSucursales ?? null,
         isAdmin: profile?.esAdmin ?? false,
         isProfesional: profile?.esProfesional ?? false,
         isCliente: profile?.esCliente ?? false,

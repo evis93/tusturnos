@@ -13,6 +13,7 @@ type Excepcion   = { id: string; fecha: string; tipo: 'bloqueo' | 'extension'; h
 export default function HorariosPage() {
   const { profile } = useAuth();
   const { colors }  = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const [base, setBase]           = useState<HorarioBase[]>([]);
   const [excepciones, setExcepciones] = useState<Excepcion[]>([]);
@@ -99,7 +100,7 @@ export default function HorariosPage() {
 
   if (loading) return (
     <div className="flex justify-center py-16">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
     </div>
   );
 
@@ -138,7 +139,7 @@ export default function HorariosPage() {
           <button
             onClick={() => { setForm({ fecha: '', tipo: 'bloqueo', horaInicio: '', horaFin: '', motivo: '' }); setError(''); setModalOpen(true); }}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-white text-sm font-medium"
-            style={{ background: colors.primary }}
+            style={{ background: primaryColor }}
           >
             <Plus size={14} /> Agregar
           </button>
@@ -160,7 +161,7 @@ export default function HorariosPage() {
                   <p className="text-sm font-medium" style={{ color: colors.text }}>
                     {e.fecha} · {e.horaInicio} – {e.horaFin}
                   </p>
-                  <p className="text-xs mt-0.5" style={{ color: e.tipo === 'bloqueo' ? '#ef4444' : colors.primary }}>
+                  <p className="text-xs mt-0.5" style={{ color: e.tipo === 'bloqueo' ? '#ef4444' : primaryColor }}>
                     {e.tipo === 'bloqueo' ? 'Bloqueo' : 'Extensión'}
                     {e.motivo ? ` — ${e.motivo}` : ''}
                   </p>
@@ -190,8 +191,8 @@ export default function HorariosPage() {
                       onClick={() => setForm(prev => ({ ...prev, tipo: v }))}
                       className="py-2 rounded-lg text-sm font-medium transition"
                       style={{
-                        background: form.tipo === v ? colors.primary : colors.primaryFaded,
-                        color:      form.tipo === v ? '#fff' : colors.primary,
+                        background: form.tipo === v ? primaryColor : primaryColorFaded,
+                        color:      form.tipo === v ? '#fff' : primaryColor,
                       }}
                     >
                       {l}
@@ -259,7 +260,7 @@ export default function HorariosPage() {
                 onClick={handleGuardar}
                 disabled={guardando}
                 className="flex-1 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-60"
-                style={{ background: colors.primary }}
+                style={{ background: primaryColor }}
               >
                 {guardando ? 'Guardando...' : 'Guardar'}
               </button>

@@ -36,6 +36,7 @@ function formatMonto(monto: number) {
 export default function ReportesPage() {
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const [fecha, setFecha] = useState(() => {
     const guardada = typeof window !== 'undefined'
@@ -96,7 +97,7 @@ export default function ReportesPage() {
         </button>
         <div className="text-center">
           <p className="font-semibold text-base" style={{ color: colors.text }}>{formatFechaLarga(fecha)}</p>
-          {esHoy && <p className="text-xs mt-0.5 font-medium" style={{ color: colors.primary }}>hoy</p>}
+          {esHoy && <p className="text-xs mt-0.5 font-medium" style={{ color: primaryColor }}>hoy</p>}
         </div>
         <button onClick={() => cambiarDia(1)} className="p-2 rounded-lg hover:bg-gray-100 transition" disabled={esHoy} style={{ opacity: esHoy ? 0.3 : 1 }}>
           <ChevronRight size={20} style={{ color: colors.text }} />
@@ -105,7 +106,7 @@ export default function ReportesPage() {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
         </div>
       ) : (
         <div className="space-y-5">
@@ -113,8 +114,8 @@ export default function ReportesPage() {
           <div className="bg-white rounded-2xl border p-6 shadow-sm" style={{ borderColor: colors.border }}>
             <div className="flex items-start justify-between mb-2">
               <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: colors.textMuted }}>Total Recaudado</p>
-              <div className="p-2 rounded-lg" style={{ background: colors.primaryFaded }}>
-                <Banknote size={20} style={{ color: colors.primary }} />
+              <div className="p-2 rounded-lg" style={{ background: primaryColorFaded }}>
+                <Banknote size={20} style={{ color: primaryColor }} />
               </div>
             </div>
             <p className="text-4xl font-extrabold mt-1" style={{ color: colors.text }}>${formatMonto(resumen.totalRecaudado)}</p>
@@ -131,7 +132,7 @@ export default function ReportesPage() {
             <div className="flex items-center justify-between mb-3">
               <p className="font-bold text-base" style={{ color: colors.text }}>Desglose por Pago</p>
               {desglosePagosArray.length > 0 && (
-                <span className="text-xs font-bold px-2 py-1 rounded" style={{ background: colors.primaryFaded, color: colors.primary }}>
+                <span className="text-xs font-bold px-2 py-1 rounded" style={{ background: primaryColorFaded, color: primaryColor }}>
                   {desglosePagosArray.length} {desglosePagosArray.length === 1 ? 'MÉTODO' : 'MÉTODOS'}
                 </span>
               )}
@@ -164,7 +165,7 @@ export default function ReportesPage() {
           <section>
             <div className="flex items-center justify-between mb-3">
               <p className="font-bold text-base" style={{ color: colors.text }}>Pendientes de Pago</p>
-              <span className="text-xs font-bold px-2 py-1 rounded" style={{ background: resumen.cantidadPendientes > 0 ? '#fef9c3' : colors.primaryFaded, color: resumen.cantidadPendientes > 0 ? '#a16207' : colors.primary }}>
+              <span className="text-xs font-bold px-2 py-1 rounded" style={{ background: resumen.cantidadPendientes > 0 ? '#fef9c3' : primaryColorFaded, color: resumen.cantidadPendientes > 0 ? '#a16207' : primaryColor }}>
                 {resumen.cantidadPendientes} PENDIENTES
               </span>
             </div>
@@ -197,7 +198,7 @@ export default function ReportesPage() {
                       <button
                         onClick={() => setReservaParaPagar(reserva)}
                         className="text-xs font-bold px-3 py-1 rounded-lg text-white"
-                        style={{ background: colors.primary }}
+                        style={{ background: primaryColor }}
                       >
                         cobrar
                       </button>

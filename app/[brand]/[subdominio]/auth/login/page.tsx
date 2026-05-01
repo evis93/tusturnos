@@ -1,218 +1,407 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/src/context/AuthContext';
-import { useTenant } from '@/src/context/TenantContext';
-import { BRAND_DEFAULTS } from '@/src/lib/brand-colors';
-
-type LoginTab = 'empresa' | 'cliente';
+import { getBrandColors } from '@/src/lib/brand-colors';
+import { fetchEmpresaBranding } from '@/src/actions/fetch-empresa-branding';
+import Image from 'next/image';
+import { Store, User, Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function LoginPage({
   params,
 }: {
-  params: { brand: 'mensana' | 'tusturnos'; subdominio: string };
+  params: Promise<{ brand: 'mensana' | 'tusturnos'; subdominio: string }>;
 }) {
-  const router = useRouter();
+  const { brand, subdominio } = use(params);
+  const brandColors = getBrandColors(brand);
   const { login } = useAuth();
-  const tenant = useTenant();
+  const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<LoginTab>('empresa');
+  const [empresaBranding, setEmpresaBranding] = useState<{ colorPrimario: string; colorSecundario: string; colorBackground: string; logoUrl: string } | null>(null);
+
+  useEffect(() => {
+    fetchEmpresaBranding(subdominio).then(branding => {
+      setEmpresaBranding(branding);
+    });
+  }, [subdominio]);
+
+  // Usar colores de la empresa si existen, sino usar colores del brand
+  const primaryColor = empresaBranding?.colorPrimario || brandColors.primary;
+  const secondaryColor = empresaBranding?.colorSecundario || brandColors.secondary;
+  const backgroundColor = empresaBranding?.colorBackground || brandColors.background;
+  const logoUrl = empresaBranding?.logoUrl || brandColors.logo;
+
+  // Colores del diseño
+  const C = {
+    primary: primaryColor,
+    primaryContainer: secondaryColor,
+    surface: backgroundColor,
+    surfaceContainer: '#eceef0',
+    surfaceContainerLow: '#f2f4f6',
+    surfaceContainerLowest: '#ffffff',
+    onSurface: '#191c1e',
+    onSurfaceVariant: '#3f4850',
+    outline: '#6f7881',
+    outlineVariant: '#bec8d2',
+    primaryFixedDim: '#9ccaff',
+  };
+
+  const [tab, setTab] = useState<'empresa' | 'cliente'>('empresa');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const colors = tenant?.colors || BRAND_DEFAULTS[params.brand];
-  const gradient = `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`;
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      setError('Completá el email y la contraseña');
+      return;
+    }
     setError('');
     setLoading(true);
-
-    try {
-      await login(email, password);
-      router.push(`/${params.brand}/${params.subdominio}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
-    } finally {
-      setLoading(false);
+    const result = await login(email.trim().toLowerCase(), password);
+    setLoading(false);
+    if (!result.success) {
+      setError(result.error?.message || 'Email o contraseña incorrectos');
+      return;
     }
+    router.replace(tab === 'cliente' ? `/${brand}/${subdominio}/cliente` : `/${brand}/${subdominio}`);
   };
 
   return (
-    <div className="min-h-screen flex bg-white">
-      {/* Left Panel - Brand Story (hidden on mobile) */}
-      <div
-        className="hidden md:flex md:w-5/12 flex-col items-center justify-center px-8 text-white relative"
-        style={{ background: gradient }}
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ backgroundColor: C.surface, fontFamily: 'Manrope, sans-serif' }}
+    >
+      {/* Decoración de fondo */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" style={{ backgroundColor: C.surface }}>
+        <div
+          className="absolute rounded-full"
+          style={{
+            top: '-20%', left: '-10%', width: '60%', height: '60%',
+            background: `${C.primary}0d`, filter: 'blur(120px)',
+          }}
+        />
+        <div
+          className="absolute rounded-full"
+          style={{
+            bottom: '10%', right: '5%', width: '40%', height: '40%',
+            background: '#00628a0d', filter: 'blur(100px)',
+          }}
+        />
+      </div>
+
+      <main
+        className="w-full overflow-hidden"
+        style={{
+          maxWidth: '72rem',
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          borderRadius: '2rem',
+          backgroundColor: C.surfaceContainerLowest,
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+        }}
       >
-        <div className="max-w-sm text-center">
-          <h1 className="text-4xl font-bold mb-6">
-            {params.brand === 'mensana' ? 'Mensana' : 'Tus Turnos'}
-          </h1>
-          <p className="text-lg opacity-90 mb-8">
-            Plataforma integral de reservas y agendamiento profesional
-          </p>
+        <style>{`@media(min-width:1024px){.login-grid{grid-template-columns:5fr 7fr!important}}.panel-left{display:none}@media(min-width:1024px){.panel-left{display:flex!important}}.mobile-header{display:flex}@media(min-width:1024px){.mobile-header{display:none!important}}`}</style>
 
-          {/* Benefits */}
-          <div className="space-y-4 text-left">
-            {[
-              { icon: 'check_circle', label: 'Gestión completa de reservas' },
-              { icon: 'check_circle', label: 'Profesionales verificados' },
-              { icon: 'check_circle', label: 'Pagos seguros integrados' },
-            ].map((benefit) => (
-              <div key={benefit.label} className="flex items-start gap-3">
-                <span className="material-symbols-outlined flex-shrink-0">
-                  {benefit.icon}
-                </span>
-                <span>{benefit.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Right Panel - Login Form */}
-      <div className="w-full md:w-7/12 flex flex-col items-center justify-center px-6 py-12 md:px-16">
-        {/* Tab Switcher */}
-        <div className="w-full max-w-sm mb-8">
-          <div className="flex gap-4 border-b border-gray-200">
-            {(['empresa', 'cliente'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-3 text-sm font-semibold border-b-2 transition ${
-                  activeTab === tab
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-                style={
-                  activeTab === tab ? { borderBottomColor: colors.primary } : {}
-                }
-              >
-                {tab === 'empresa' ? 'Empresa' : 'Cliente'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Login Form */}
-        <form onSubmit={handleLogin} className="w-full max-w-sm space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Correo electrónico
-            </label>
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">
-                mail
-              </span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="tu@email.com"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition"
-                style={{ focusRingColor: colors.primary }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Contraseña
-            </label>
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">
-                lock
-              </span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 transition"
-              />
-            </div>
-          </div>
-
-          {/* Remember Me */}
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 border border-gray-300 rounded"
-            />
-            <span className="text-gray-700">Recordarme por 30 días</span>
-          </label>
-
-          {/* Error */}
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 hover:shadow-lg disabled:opacity-70"
-            style={{ background: gradient }}
+        <div className="login-grid" style={{ display: 'grid' }}>
+          {/* ── Panel izquierdo: branding ────────────────────────────────── */}
+          <section
+            className="panel-left"
+            style={{
+              position: 'relative',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              padding: '3rem',
+              background: `linear-gradient(135deg, ${C.primary} 0%, ${C.primaryContainer} 100%)`,
+              color: 'white',
+            }}
           >
-            {loading ? 'Iniciando sesión...' : 'Iniciar sesión en el Hub'}
-          </button>
-        </form>
+            <div style={{ position: 'relative', zIndex: 10 }}>
+              <div style={{
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                backgroundColor: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                flexShrink: 0,
+              }}>
+                <Image
+                  src={logoUrl}
+                  alt={brand}
+                  width={90}
+                  height={90}
+                  style={{ objectFit: 'contain' }}
+                />
+              </div>
+              <h1 style={{ fontSize: '2.75rem', fontWeight: 700, lineHeight: 1.2, marginBottom: '1.5rem' }}>
+                Turnos organizados,{' '}
+                <span style={{ opacity: 0.8 }}>clientes satisfechos.</span>
+              </h1>
 
-        {/* Social Auth Divider */}
-        <div className="w-full max-w-sm my-6">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-500">O continúa con</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-        </div>
+              <div style={{ marginTop: '3rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {[                  {
+                    icon: <Store size={20} />,
+                    title: 'Para Empresas',
+                    desc: 'Accedé a tu panel de control de turnos en tiempo real y programá tu espacio personal.',
+                  },
+                  {
+                    icon: <User size={20} />,
+                    title: 'Para Clientes',
+                    desc: 'Reservá turnos fácilmente con centros y/o profesionales de tu confianza o sugeridos por nuestra comunidad, cuando y donde quieras.',
+                  },
+                ].map(item => (
+                  <div key={item.title} style={{ display: 'flex', gap: '1rem' }}>
+                    <div style={{
+                      width: '3rem', height: '3rem', borderRadius: '0.75rem',
+                      background: 'rgba(255,255,255,0.1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      {item.icon}
+                    </div>
+                    <div>
+                      <h3 style={{ fontWeight: 700, fontSize: '1.1rem' }}>{item.title}</h3>
+                      <p style={{ color: 'rgba(219,234,254,0.8)', fontSize: '0.875rem', lineHeight: 1.6 }}>{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-        {/* Social Buttons */}
-        <div className="w-full max-w-sm flex gap-4">
-          <button className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center justify-center gap-2">
-            <span className="text-lg">🔵</span>
-            <span className="text-sm font-medium text-gray-700">Google</span>
-          </button>
-          <button className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center justify-center gap-2">
-            <span className="text-lg">🍎</span>
-            <span className="text-sm font-medium text-gray-700">Apple</span>
-          </button>
-        </div>
+            {/* Decoración */}
+            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', opacity: 0.2 }}>
+              <div style={{ position: 'absolute', bottom: '-5rem', right: '-5rem', width: '24rem', height: '24rem', borderRadius: '9999px', border: '40px solid rgba(255,255,255,0.2)' }} />
+              <div style={{ position: 'absolute', top: '10rem', left: '-5rem', width: '16rem', height: '16rem', borderRadius: '9999px', border: '20px solid rgba(255,255,255,0.1)' }} />
+            </div>
 
-        {/* Footer */}
-        <div className="w-full max-w-sm text-center mt-8 pt-8 border-t border-gray-200">
-          <p className="text-gray-600 text-sm">
-            ¿Nuevo en{' '}
-            <span className="font-semibold">
-              {params.brand === 'mensana' ? 'Mensana' : 'Tus Turnos'}
-            </span>
-            ?{' '}
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  `/${params.brand}/${params.subdominio}/auth/register`
-                )
-              }
-              className="font-semibold transition"
-              style={{ color: colors.primary }}
-            >
-              Crear cuenta
-            </button>
-          </p>
+            <div style={{ position: 'relative', zIndex: 10, paddingTop: '3rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <p style={{ fontSize: '0.75rem', fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.6 }}>
+                Sistema de gestión de turnos
+              </p>
+            </div>
+          </section>
+
+          {/* ── Panel derecho: formulario ────────────────────────────────── */}
+          <section style={{
+            backgroundColor: C.surfaceContainerLowest,
+            padding: '2rem',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          }}
+            className="md:p-16"
+          >
+            {/* Header móvil */}
+            <div className="mobile-header" style={{ alignItems: 'center', gap: '0.75rem', marginBottom: '3rem' }}>
+              <Image src={logoUrl} alt={brand} width={140} height={42} style={{ objectFit: 'contain' }} />
+            </div>
+
+            <div style={{ maxWidth: '28rem', margin: '0 auto', width: '100%' }}>
+              <header style={{ marginBottom: '2.5rem', textAlign: 'left' }}>
+                <h2 style={{ fontSize: '1.875rem', fontWeight: 700, color: C.onSurface, marginBottom: '0.75rem' }}>
+                  Bienvenido de nuevo
+                </h2>
+                <p style={{ color: C.onSurfaceVariant, fontWeight: 500 }}>
+                  Por favor, seleccioná tu tipo de cuenta para continuar.
+                </p>
+              </header>
+
+              {/* Tabs Empresa / Cliente */}
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem',
+                marginBottom: '2.5rem', backgroundColor: C.surfaceContainerLow,
+                padding: '0.375rem', borderRadius: '1rem',
+              }}>
+                {(['empresa', 'cliente'] as const).map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTab(t)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                      padding: '0.875rem 1rem', borderRadius: '0.75rem', fontWeight: 600,
+                      transition: 'all 0.3s',
+                      ...(tab === t
+                        ? { background: `linear-gradient(135deg, ${C.primary} 0%, ${C.primaryContainer} 100%)`, color: 'white', boxShadow: '0 4px 12px rgba(0,95,157,0.3)', transform: 'scale(1.02)' }
+                        : { background: 'transparent', color: C.onSurfaceVariant }),
+                    }}
+                  >
+                    {t === 'empresa' ? <Store size={20} /> : <User size={20} />}
+                    {t === 'empresa' ? 'Empresa' : 'Cliente'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Formulario */}
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Email */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label htmlFor="email" style={{ fontSize: '0.875rem', fontWeight: 600, color: C.onSurfaceVariant, marginLeft: '0.25rem' }}>
+                    Correo electrónico
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'absolute', inset: '0 auto 0 0', paddingLeft: '1rem', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                      <Mail size={20} color={C.outline} />
+                    </div>
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="nombre@empresa.com"
+                      autoComplete="email"
+                      style={{
+                        width: '100%', paddingLeft: '3rem', paddingRight: '1rem', paddingTop: '1rem', paddingBottom: '1rem',
+                        backgroundColor: C.surfaceContainerLow, border: 'none', borderRadius: '0.75rem',
+                        outline: 'none', fontFamily: 'inherit', fontSize: '0.95rem', fontWeight: 500,
+                        color: C.onSurface, boxSizing: 'border-box',
+                      }}
+                      onFocus={e => { e.currentTarget.style.boxShadow = `0 0 0 2px ${C.primaryFixedDim}`; e.currentTarget.style.backgroundColor = C.surfaceContainerLowest; }}
+                      onBlur={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.backgroundColor = C.surfaceContainerLow; }}
+                    />
+                  </div>
+                </div>
+
+                {/* Contraseña */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginLeft: '0.25rem' }}>
+                    <label htmlFor="password" style={{ fontSize: '0.875rem', fontWeight: 600, color: C.onSurfaceVariant }}>
+                      Contraseña
+                    </label>
+                    <Link href={`/${brand}/${subdominio}/auth/recuperar-contrasena`} style={{ fontSize: '0.875rem', fontWeight: 700, color: C.primary, textDecoration: 'none' }}>
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'absolute', inset: '0 auto 0 0', paddingLeft: '1rem', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                      <Lock size={20} color={C.outline} />
+                    </div>
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      style={{
+                        width: '100%', paddingLeft: '3rem', paddingRight: '3rem', paddingTop: '1rem', paddingBottom: '1rem',
+                        backgroundColor: C.surfaceContainerLow, border: 'none', borderRadius: '0.75rem',
+                        outline: 'none', fontFamily: 'inherit', fontSize: '0.95rem', fontWeight: 500,
+                        color: C.onSurface, boxSizing: 'border-box',
+                      }}
+                      onFocus={e => { e.currentTarget.style.boxShadow = `0 0 0 2px ${C.primaryFixedDim}`; e.currentTarget.style.backgroundColor = C.surfaceContainerLowest; }}
+                      onBlur={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.backgroundColor = C.surfaceContainerLow; }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{ position: 'absolute', inset: '0 0 0 auto', paddingRight: '1rem', display: 'flex', alignItems: 'center', color: C.outlineVariant, background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Recordarme */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0' }}>
+                  <input
+                    id="remember"
+                    type="checkbox"
+                    checked={remember}
+                    onChange={e => setRemember(e.target.checked)}
+                    style={{ width: '1.25rem', height: '1.25rem', borderRadius: '0.25rem', accentColor: C.primary, cursor: 'pointer' }}
+                  />
+                  <label htmlFor="remember" style={{ fontSize: '0.875rem', fontWeight: 500, color: C.onSurfaceVariant, cursor: 'pointer' }}>
+                    Mantener sesión iniciada por 30 días
+                  </label>
+                </div>
+
+                {/* Error */}
+                {error && (
+                  <p style={{ fontSize: '0.875rem', padding: '0.75rem', borderRadius: '0.75rem', color: '#ba1a1a', backgroundColor: '#ffdad6' }}>
+                    {error}
+                  </p>
+                )}
+
+                {/* Botón submit */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    width: '100%', padding: '1rem 1.5rem', borderRadius: '0.75rem',
+                    background: `linear-gradient(135deg, ${C.primary} 0%, ${C.primaryContainer} 100%)`,
+                    color: 'white', fontWeight: 700, fontSize: '1.1rem',
+                    border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                    boxShadow: '0 8px 24px rgba(0,95,157,0.2)',
+                    opacity: loading ? 0.7 : 1,
+                    transition: 'transform 0.15s, opacity 0.15s',
+                  }}
+                  onMouseEnter={e => { if (!loading) e.currentTarget.style.transform = 'scale(1.01)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                >
+                  {loading ? <Loader2 size={20} className="animate-spin" /> : null}
+                  {loading ? 'Ingresando...' : 'Iniciar sesión'}
+                  {!loading && <ArrowRight size={20} />}
+                </button>
+              </form>
+
+              {/* Divider */}
+              <div style={{ marginTop: '2.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ flex: 1, height: '1px', backgroundColor: `${C.outlineVariant}4d` }} />
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: C.outline, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  o continuar con
+                </span>
+                <div style={{ flex: 1, height: '1px', backgroundColor: `${C.outlineVariant}4d` }} />
+              </div>
+
+              {/* Social buttons */}
+              <div style={{ marginTop: '2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {[
+                  { label: 'Google', icon: 'https://www.google.com/favicon.ico' },
+                ].map(s => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                      padding: '0.75rem', border: `1px solid ${C.outlineVariant}33`,
+                      borderRadius: '0.75rem', fontWeight: 600, color: C.onSurface,
+                      background: 'white', cursor: 'pointer', transition: 'background 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = C.surfaceContainerLow; }}
+                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'white'; }}
+                  >
+                    <img src={s.icon} alt={s.label} style={{ width: '1.25rem', height: '1.25rem' }} />
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <footer style={{ marginTop: '3rem', textAlign: 'center' }}>
+                <p style={{ color: C.onSurfaceVariant, fontWeight: 500 }}>
+                  ¿Nuevo?{' '}
+                  <Link
+                    href={`/${brand}/${subdominio}/auth/register`}
+                    style={{ color: C.primary, fontWeight: 700, marginLeft: '0.25rem', textDecoration: 'none' }}
+                  >
+                    Crear una cuenta
+                  </Link>
+                </p>
+              </footer>
+            </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

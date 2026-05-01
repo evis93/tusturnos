@@ -15,6 +15,7 @@ const FORM_VACIO = {
 export default function ServiciosPage() {
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const [servicios, setServicios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +89,7 @@ export default function ServiciosPage() {
         <button
           onClick={abrirCrear}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-          style={{ background: colors.primary }}
+          style={{ background: primaryColor }}
         >
           <Plus size={16} /> Agregar
         </button>
@@ -96,7 +97,7 @@ export default function ServiciosPage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
         </div>
       ) : servicios.length === 0 ? (
         <div className="text-center py-16">
@@ -133,7 +134,7 @@ export default function ServiciosPage() {
                       : <ToggleLeft size={26} className="text-gray-300" />}
                   </button>
                   <button onClick={() => abrirEditar(s)} className="p-1.5 rounded-lg hover:bg-gray-100 transition">
-                    <Pencil size={15} style={{ color: colors.primary }} />
+                    <Pencil size={15} style={{ color: primaryColor }} />
                   </button>
                   <button onClick={() => handleEliminar(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 transition">
                     <Trash2 size={15} className="text-red-500" />
@@ -184,8 +185,8 @@ export default function ServiciosPage() {
                       onClick={() => setForm(prev => ({ ...prev, modalidad: m }))}
                       className="py-2 rounded-lg text-xs font-medium transition"
                       style={{
-                        background: form.modalidad === m ? colors.primary : colors.primaryFaded,
-                        color: form.modalidad === m ? '#fff' : colors.primary,
+                        background: form.modalidad === m ? primaryColor : primaryColorFaded,
+                        color: form.modalidad === m ? '#fff' : primaryColor,
                       }}
                     >
                       {labelModalidad[m]}
@@ -205,8 +206,8 @@ export default function ServiciosPage() {
                       onClick={() => setForm(prev => ({ ...prev, sena_tipo: v }))}
                       className="py-2 rounded-lg text-xs font-medium transition"
                       style={{
-                        background: form.sena_tipo === v ? colors.primary : colors.primaryFaded,
-                        color: form.sena_tipo === v ? '#fff' : colors.primary,
+                        background: form.sena_tipo === v ? primaryColor : primaryColorFaded,
+                        color: form.sena_tipo === v ? '#fff' : primaryColor,
                       }}
                     >
                       {l}
@@ -243,7 +244,7 @@ export default function ServiciosPage() {
                 onClick={handleGuardar}
                 disabled={guardando}
                 className="flex-1 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-60"
-                style={{ background: colors.primary }}
+                style={{ background: primaryColor }}
               >
                 {guardando ? 'Guardando...' : 'Guardar'}
               </button>

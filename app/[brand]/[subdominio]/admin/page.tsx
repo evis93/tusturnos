@@ -22,6 +22,7 @@ export default function AdminPage() {
   const brand = params.brand as string;
   const subdominio = params.subdominio as string;
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
   const { profile, loading } = useAuth();
 
   const hoy = new Date().toISOString().split('T')[0];
@@ -107,7 +108,7 @@ export default function AdminPage() {
               href={item.href}
               className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-gray-50 transition group"
             >
-              <span style={{ color: colors.primary }}>{item.icon}</span>
+              <span style={{ color: primaryColor }}>{item.icon}</span>
               <span className="flex-1 text-sm font-medium" style={{ color: colors.text }}>{item.label}</span>
               <ChevronRight size={16} className="text-gray-400 group-hover:text-gray-600 transition" />
             </a>
@@ -119,16 +120,16 @@ export default function AdminPage() {
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-xl p-5 shadow-sm border" style={{ borderColor: colors.border }}>
           <p className="text-sm font-medium mb-1" style={{ color: colors.textSecondary }}>Total hoy</p>
-          <p className="text-3xl font-bold" style={{ color: colors.primary }}>
+          <p className="text-3xl font-bold" style={{ color: primaryColor }}>
             ${totalDia.toFixed(2)}
           </p>
         </div>
         <div className="bg-white rounded-xl p-5 shadow-sm border" style={{ borderColor: colors.border }}>
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp size={16} style={{ color: colors.primary }} />
+            <TrendingUp size={16} style={{ color: primaryColor }} />
             <p className="text-sm font-medium" style={{ color: colors.textSecondary }}>Total del mes</p>
           </div>
-          <p className="text-3xl font-bold" style={{ color: colors.primary }}>
+          <p className="text-3xl font-bold" style={{ color: primaryColor }}>
             ${totalMes.toFixed(2)}
           </p>
         </div>
@@ -142,7 +143,7 @@ export default function AdminPage() {
 
         {cargando ? (
           <div className="flex justify-center py-6">
-            <LoaderCircle size={20} className="animate-spin" style={{ color: colors.primary }} />
+            <LoaderCircle size={20} className="animate-spin" style={{ color: primaryColor }} />
           </div>
         ) : desglose.length === 0 ? (
           <p className="text-sm italic text-center py-4" style={{ color: colors.textSecondary }}>
@@ -154,19 +155,19 @@ export default function AdminPage() {
               <div
                 key={metodo}
                 className="flex items-center justify-between px-4 py-3 rounded-xl"
-                style={{ background: colors.primaryFaded }}
+                style={{ background: primaryColorFaded }}
               >
                 <span className="text-sm font-medium" style={{ color: colors.text }}>
                   {METODOS_LABEL[metodo] ?? metodo}
                 </span>
-                <span className="text-sm font-bold" style={{ color: colors.primary }}>
+                <span className="text-sm font-bold" style={{ color: primaryColor }}>
                   ${total.toFixed(2)}
                 </span>
               </div>
             ))}
             <div
               className="flex items-center justify-between px-4 py-3 rounded-xl mt-1"
-              style={{ background: colors.primary }}
+              style={{ background: primaryColor }}
             >
               <span className="text-sm font-bold text-white">Total</span>
               <span className="text-sm font-bold text-white">${totalDia.toFixed(2)}</span>

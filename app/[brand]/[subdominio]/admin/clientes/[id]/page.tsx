@@ -25,8 +25,8 @@ function formatHora(horaStr: string) {
 function Initials({ nombre, colors }: { nombre: string; colors: any }) {
   const initials = (nombre || '?').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
   return (
-    <div style={{ width: 56, height: 56, borderRadius: 28, background: colors.primaryFaded, border: `2px solid ${colors.primaryLight}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <span style={{ fontSize: 20, fontWeight: 700, color: colors.primary }}>{initials}</span>
+    <div style={{ width: 56, height: 56, borderRadius: 28, background: primaryColorFaded, border: `2px solid ${primaryColorLight}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <span style={{ fontSize: 20, fontWeight: 700, color: primaryColor }}>{initials}</span>
     </div>
   );
 }
@@ -50,6 +50,7 @@ export default function FichaClientePage() {
   const router = useRouter();
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const clienteId = params.id as string;
 
@@ -125,7 +126,7 @@ export default function FichaClientePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
       </div>
     );
   }
@@ -167,7 +168,7 @@ export default function FichaClientePage() {
         {proximaReserva ? (
           <div className="bg-white rounded-xl border p-4" style={{ borderColor: colors.border }}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-bold lowercase" style={{ color: colors.primary }}>
+              <p className="text-xs font-bold lowercase" style={{ color: primaryColor }}>
                 {formatFecha(proximaReserva.fecha)} · {formatHora(proximaReserva.hora_inicio)}
               </p>
               <EstadoBadge estado={proximaReserva.estado} />
@@ -196,7 +197,7 @@ export default function FichaClientePage() {
             {historial.map((reserva: any, idx: number) => (
               <div key={reserva.id} className="flex gap-4 pb-4">
                 <div className="flex flex-col items-center">
-                  <div className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0" style={{ background: colors.primaryLight }} />
+                  <div className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0" style={{ background: primaryColorLight }} />
                   {idx < historial.length - 1 && <div className="w-0.5 flex-1 mt-1" style={{ background: colors.borderLight }} />}
                 </div>
                 <div className="flex-1 pb-1">
@@ -222,7 +223,7 @@ export default function FichaClientePage() {
           <button
             onClick={() => { setNotaTexto(''); setErrorNota(''); setModalNota(true); }}
             className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg"
-            style={{ background: colors.primaryFaded, color: colors.primary }}
+            style={{ background: primaryColorFaded, color: primaryColor }}
           >
             <Plus size={14} /> nueva nota
           </button>
@@ -238,7 +239,7 @@ export default function FichaClientePage() {
             {fichas.map((ficha: any) => (
               <div key={ficha.id} className="bg-white rounded-xl border p-4" style={{ borderColor: colors.border }}>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-bold lowercase" style={{ color: colors.primary }}>{formatFecha(ficha.fecha)}</p>
+                  <p className="text-xs font-bold lowercase" style={{ color: primaryColor }}>{formatFecha(ficha.fecha)}</p>
                   {ficha.profesional_nombre && <p className="text-xs" style={{ color: colors.textMuted }}>{ficha.profesional_nombre}</p>}
                 </div>
                 <p className="text-sm leading-relaxed" style={{ color: colors.text }}>{ficha.nota}</p>
@@ -264,7 +265,7 @@ export default function FichaClientePage() {
             {errorEdit && <p className="text-xs text-red-500 mb-3">{errorEdit}</p>}
             <div className="flex gap-3">
               <button onClick={() => setModalEdit(false)} className="flex-1 py-2.5 rounded-xl border text-sm font-medium" style={{ borderColor: colors.border, color: colors.text }}>Cancelar</button>
-              <button onClick={handleGuardar} disabled={guardando} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-60" style={{ background: colors.primary }}>
+              <button onClick={handleGuardar} disabled={guardando} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-60" style={{ background: primaryColor }}>
                 {guardando ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
@@ -292,7 +293,7 @@ export default function FichaClientePage() {
             {errorNota && <p className="text-xs text-red-500 mb-3">{errorNota}</p>}
             <div className="flex gap-3">
               <button onClick={() => setModalNota(false)} className="flex-1 py-2.5 rounded-xl border text-sm font-medium" style={{ borderColor: colors.border, color: colors.text }}>Cancelar</button>
-              <button onClick={handleGuardarNota} disabled={guardandoNota} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-60" style={{ background: colors.primary }}>
+              <button onClick={handleGuardarNota} disabled={guardandoNota} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-60" style={{ background: primaryColor }}>
                 {guardandoNota ? 'Guardando...' : 'Guardar nota'}
               </button>
             </div>

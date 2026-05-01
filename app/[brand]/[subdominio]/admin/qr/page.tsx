@@ -30,6 +30,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: () => void }) {
 export default function QRPage() {
   const { profile } = useAuth();
   const { colors, logoUrl } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const [selectedSize, setSelectedSize] = useState('md');
   const [withLogo, setWithLogo] = useState(true);
@@ -48,7 +49,7 @@ export default function QRPage() {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://tusturnos.ar';
   const deepLink = empresaSlug ? `${baseUrl}/e/${empresaSlug}` : baseUrl;
   const size = SIZES.find(s => s.key === selectedSize) || SIZES[1];
-  const qrHex = colors.primary.replace('#', '');
+  const qrHex = primaryColor.replace('#', '');
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size.px}x${size.px}&data=${encodeURIComponent(deepLink)}&bgcolor=ffffff&color=${qrHex}&margin=12`;
 
   useEffect(() => {
@@ -139,7 +140,7 @@ export default function QRPage() {
             >
               {logoUrl
                 ? <img src={logoUrl} alt="logo" className="w-8 h-8 object-contain rounded" />
-                : <Building2 size={22} style={{ color: colors.primary }} />
+                : <Building2 size={22} style={{ color: primaryColor }} />
               }
             </div>
           )}
@@ -160,11 +161,11 @@ export default function QRPage() {
                 onClick={() => changeSize(s.key)}
                 className="flex-1 py-2.5 rounded-xl border-2 text-center transition"
                 style={{
-                  borderColor: active ? colors.primary : colors.borderLight,
-                  background: active ? colors.primaryFaded : 'transparent',
+                  borderColor: active ? primaryColor : colors.borderLight,
+                  background: active ? primaryColorFaded : 'transparent',
                 }}
               >
-                <p className="text-sm font-bold" style={{ color: active ? colors.primary : colors.textMuted }}>{s.label}</p>
+                <p className="text-sm font-bold" style={{ color: active ? primaryColor : colors.textMuted }}>{s.label}</p>
                 <p className="text-xs mt-0.5" style={{ color: colors.textMuted }}>{s.desc}</p>
               </button>
             );
@@ -181,7 +182,7 @@ export default function QRPage() {
         <button
           onClick={() => setWithLogo(v => !v)}
           className="relative inline-flex h-6 w-11 rounded-full transition-colors flex-shrink-0"
-          style={{ background: withLogo ? colors.primary : '#d1d5db' }}
+          style={{ background: withLogo ? primaryColor : '#d1d5db' }}
         >
           <span
             className="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform mt-0.5"
@@ -198,8 +199,8 @@ export default function QRPage() {
           className="w-full bg-white rounded-xl border p-4 flex items-center gap-3 text-left hover:bg-gray-50 transition"
           style={{ borderColor: colors.border }}
         >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: colors.primaryFaded }}>
-            {copied ? <Check size={18} style={{ color: colors.primary }} /> : <Copy size={18} style={{ color: colors.primary }} />}
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: primaryColorFaded }}>
+            {copied ? <Check size={18} style={{ color: primaryColor }} /> : <Copy size={18} style={{ color: primaryColor }} />}
           </div>
           <div className="flex-1">
             <p className="text-sm font-bold" style={{ color: colors.text }}>{copied ? '¡Copiado!' : 'Copiar link de reserva'}</p>
@@ -211,7 +212,7 @@ export default function QRPage() {
         <button
           onClick={handleDownload}
           className="w-full rounded-xl p-4 flex items-center gap-3 text-white font-bold text-sm"
-          style={{ background: colors.primary }}
+          style={{ background: primaryColor }}
         >
           <Download size={18} />
           Descargar QR en alta resolución
@@ -239,8 +240,8 @@ export default function QRPage() {
           className="w-full bg-white rounded-xl border p-4 flex items-center gap-3 hover:bg-gray-50 transition"
           style={{ borderColor: colors.border }}
         >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: colors.primaryFaded }}>
-            <Camera size={20} style={{ color: colors.primary }} />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: primaryColorFaded }}>
+            <Camera size={20} style={{ color: primaryColor }} />
           </div>
           <div className="flex-1 text-left">
             <p className="text-sm font-bold" style={{ color: colors.text }}>Redes sociales</p>
@@ -294,7 +295,7 @@ export default function QRPage() {
 
             <label className="block text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: colors.textMuted }}>Email de contacto</label>
             <div className="flex items-center border rounded-xl px-3 mb-6" style={{ borderColor: colors.borderLight }}>
-              <Mail size={18} className="mr-2 flex-shrink-0" style={{ color: colors.primary }} />
+              <Mail size={18} className="mr-2 flex-shrink-0" style={{ color: primaryColor }} />
               <input
                 value={emailContacto}
                 onChange={e => setEmailContacto(e.target.value)}
@@ -317,7 +318,7 @@ export default function QRPage() {
                 onClick={handleGuardarRedes}
                 disabled={savingRedes}
                 className="flex-[2] py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60"
-                style={{ background: colors.primary }}
+                style={{ background: primaryColor }}
               >
                 {savingRedes ? 'Guardando...' : 'Guardar'}
               </button>

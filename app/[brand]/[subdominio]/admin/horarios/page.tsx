@@ -24,6 +24,7 @@ function horarioInicial(): HorarioDia[] {
 export default function HorariosPage() {
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
 
   const [horarios, setHorarios]   = useState<HorarioDia[]>(horarioInicial());
   const [loading, setLoading]     = useState(true);
@@ -99,7 +100,7 @@ export default function HorariosPage() {
 
   if (loading) return (
     <div className="flex justify-center py-16">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
     </div>
   );
 
@@ -127,8 +128,8 @@ export default function HorariosPage() {
                   onClick={() => toggleDia(dia.value)}
                   className="text-xs px-3 py-1 rounded-full font-medium transition"
                   style={{
-                    background: h.activo ? colors.primary : colors.primaryFaded,
-                    color:      h.activo ? '#fff' : colors.primary,
+                    background: h.activo ? primaryColor : primaryColorFaded,
+                    color:      h.activo ? '#fff' : primaryColor,
                   }}
                 >
                   {h.activo ? 'Activo' : 'Inactivo'}
@@ -171,7 +172,7 @@ export default function HorariosPage() {
         onClick={handleGuardar}
         disabled={guardando}
         className="mt-6 w-full py-3 rounded-xl text-white font-medium disabled:opacity-60"
-        style={{ background: colors.primary }}
+        style={{ background: primaryColor }}
       >
         {guardando ? 'Guardando...' : 'Guardar horarios'}
       </button>

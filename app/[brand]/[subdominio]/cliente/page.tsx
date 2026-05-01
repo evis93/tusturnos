@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import { supabase } from '@/src/config/supabase';
@@ -30,8 +30,13 @@ function formatFechaHistorial(fechaStr: string) {
 
 export default function ClientePage() {
   const router = useRouter();
+  const params = useParams();
+  const brand = params.brand as string;
+  const subdominio = params.subdominio as string;
   const { colors, logoUrl } = useTheme();
   const { profile } = useAuth();
+  const primaryColor = profile?.colorPrimario || primaryColor;
+  const backgroundColor = profile?.colorBackground || colors.background;
 
   const nombreCorto = profile?.nombre_completo?.split(' ')[0]?.toLowerCase() || 'hola';
 
@@ -123,7 +128,7 @@ export default function ClientePage() {
   };
 
   const handleCambiarHorario = (reserva: any) => {
-    router.push(`/cliente/reservar?cambiarId=${reserva.id}`);
+    router.push(`/${brand}/${subdominio}/cliente/reservar?cambiarId=${reserva.id}`);
   };
 
   const handleBorrarResena = async (reservaId: string) => {
@@ -137,13 +142,13 @@ export default function ClientePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.background }}>
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: colors.primary }} />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: primaryColor }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
+    <div className="min-h-screen" style={{ backgroundColor }}>
       {/* Header */}
       <header className="px-6 py-5 flex items-center justify-between">
         <div>
@@ -153,9 +158,9 @@ export default function ClientePage() {
 
       <div className="px-6 space-y-7">
         {/* Nueva reserva */}
-        <Link href="/cliente/reservar"
+        <Link href={`/${brand}/${subdominio}/cliente/reservar`}
           className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-bold"
-          style={{ backgroundColor: colors.primary, color: '#fff' }}>
+          style={{ backgroundColor: primaryColor, color: '#fff' }}>
           + nueva reserva
         </Link>
 
@@ -178,7 +183,7 @@ export default function ClientePage() {
                       </span>
                     )}
 
-                    <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: colors.primary }}>
+                    <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: primaryColor }}>
                       {formatProxima(sesion.fecha, sesion.hora)}
                     </p>
                     <p className="text-lg font-bold lowercase mb-1" style={{ color: colors.text }}>
@@ -201,7 +206,7 @@ export default function ClientePage() {
                         <button
                           onClick={() => handleCambiarHorario(sesion)}
                           className="flex-1 py-2.5 rounded-xl text-xs font-bold"
-                          style={{ backgroundColor: colors.primaryFaded, color: colors.primary }}
+                          style={{ backgroundColor: primaryColorFaded, color: primaryColor }}
                         >
                           cambiar horario
                         </button>
@@ -237,8 +242,8 @@ export default function ClientePage() {
               {historial.map((h: any, idx: number) => (
                 <div key={h.id} className="flex gap-4 pb-6">
                   <div className="flex flex-col items-center w-3">
-                    <div className="w-3 h-3 rounded-full border-2 border-white z-10" style={{ backgroundColor: colors.primaryFaded }} />
-                    {idx < historial.length - 1 && <div className="w-px flex-1 mt-1" style={{ backgroundColor: colors.primaryFaded }} />}
+                    <div className="w-3 h-3 rounded-full border-2 border-white z-10" style={{ backgroundColor: primaryColorFaded }} />
+                    {idx < historial.length - 1 && <div className="w-px flex-1 mt-1" style={{ backgroundColor: primaryColorFaded }} />}
                   </div>
                   <div className="flex-1">
                     <p className="text-xs lowercase mb-0.5" style={{ color: colors.textMuted }}>{formatFechaHistorial(h.fecha)}</p>
@@ -250,7 +255,7 @@ export default function ClientePage() {
                         <div className="flex gap-2">
                           <button onClick={() => setReservaParaResena(h)}
                             className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
-                            style={{ borderColor: colors.primary, color: colors.primary }}>
+                            style={{ borderColor: primaryColor, color: primaryColor }}>
                             ✏️ editar
                           </button>
                           <button onClick={() => handleBorrarResena(h.id)}
@@ -262,7 +267,7 @@ export default function ClientePage() {
                       ) : (
                         <button onClick={() => setReservaParaResena(h)}
                           className="flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold lowercase"
-                          style={{ borderColor: colors.primary, color: colors.primary }}>
+                          style={{ borderColor: primaryColor, color: primaryColor }}>
                           calificar ★
                         </button>
                       )
@@ -283,7 +288,7 @@ export default function ClientePage() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs uppercase tracking-wider" style={{ color: colors.textSecondary }}>pensando en tu bienestar integral</p>
-            <button className="text-xs font-bold lowercase" style={{ color: colors.primary }}>ver más</button>
+            <button className="text-xs font-bold lowercase" style={{ color: primaryColor }}>ver más</button>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
             {[
@@ -291,9 +296,9 @@ export default function ClientePage() {
               { icon: '🌿', tag: 'rutina', titulo: 'estiramientos de mañana', sub: 'mejora tu postura hoy' },
             ].map((c, i) => (
               <div key={i} className="flex-shrink-0 w-56 rounded-2xl overflow-hidden border" style={{ borderColor: colors.borderLight }}>
-                <div className="h-24 flex items-center justify-center text-4xl" style={{ backgroundColor: colors.primaryFaded }}>{c.icon}</div>
+                <div className="h-24 flex items-center justify-center text-4xl" style={{ backgroundColor: primaryColorFaded }}>{c.icon}</div>
                 <div className="p-3">
-                  <p className="text-xs font-bold uppercase tracking-wide lowercase mb-1" style={{ color: colors.primary }}>{c.tag}</p>
+                  <p className="text-xs font-bold uppercase tracking-wide lowercase mb-1" style={{ color: primaryColor }}>{c.tag}</p>
                   <p className="text-xs font-bold lowercase leading-snug mb-0.5" style={{ color: colors.text }}>{c.titulo}</p>
                   <p className="text-xs lowercase" style={{ color: colors.textMuted }}>{c.sub}</p>
                 </div>

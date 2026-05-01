@@ -25,14 +25,39 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
 };
 
+export interface SucursalDisponible {
+  sucursalId: string;
+  sucursalNombre: string;
+  empresaId: string;
+  empresaNombre: string;
+  direccion?: string;
+  location?: any;
+  rolId: string;
+  totalSucursalesUsuario: number;
+  totalEmpresasUsuario: number;
+  sucursalesPorEmpresa: number;
+}
+
+export interface EmpresaDisponible {
+  empresaId: string;
+  empresaNombre: string;
+  rol: string;
+  colorPrimario?: string;
+  colorSecundario?: string;
+  colorBackground?: string;
+  logoUrl?: string;
+}
+
 export interface Profile {
   rol?: string | null;
   empresaId?: string | null;
+  sucursalId?: string | null;
   usuarioId?: string | null;
   authUserId?: string | null;
   nombre_completo?: string | null;
   email?: string | null;
   empresaNombre?: string | null;
+  sucursalNombre?: string | null;
   profesionalId?: string | null;
   esAdmin?: boolean;
   esProfesional?: boolean;
@@ -42,6 +67,9 @@ export interface Profile {
   colorSecundario?: string | null;
   colorBackground?: string | null;
   logoUrl?: string | null;
+  empresasDisponibles?: EmpresaDisponible[];
+  sucursalesDisponibles?: SucursalDisponible[];
+  totalSucursales?: number;
 }
 
 export function hasPermission(rol: string | null | undefined, permission: string) {

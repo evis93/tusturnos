@@ -16,6 +16,7 @@ export default function AgendaMensualPage() {
   const subdominio = params.subdominio as string;
   const { profile } = useAuth();
   const { colors } = useTheme();
+  const primaryColor = profile?.colorPrimario || primaryColor;
   const router = useRouter();
 
   const now = new Date();
@@ -90,7 +91,7 @@ export default function AgendaMensualPage() {
         {/* Grilla de días */}
         {loading ? (
           <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-7 w-7 border-b-2" style={{ borderColor: colors.primary }} />
+            <div className="animate-spin rounded-full h-7 w-7 border-b-2" style={{ borderColor: primaryColor }} />
           </div>
         ) : (
           <div className="grid grid-cols-7 gap-1">
@@ -104,14 +105,14 @@ export default function AgendaMensualPage() {
                   onClick={() => irAAgenda(celda.fecha)}
                   className="aspect-square rounded-xl flex flex-col items-center justify-center text-sm font-medium transition-all hover:opacity-90 relative"
                   style={{
-                    background: esHoy ? colors.primary : tieneReservas ? colors.primaryFaded : 'transparent',
-                    color: esHoy ? '#fff' : tieneReservas ? colors.primary : colors.text,
-                    border: tieneReservas && !esHoy ? `1px solid ${colors.primaryLight}` : '1px solid transparent',
+                    background: esHoy ? primaryColor : tieneReservas ? primaryColorFaded : 'transparent',
+                    color: esHoy ? '#fff' : tieneReservas ? primaryColor : colors.text,
+                    border: tieneReservas && !esHoy ? `1px solid ${primaryColorLight}` : '1px solid transparent',
                   }}
                 >
                   {celda.dia}
                   {tieneReservas && !esHoy && (
-                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full" style={{ background: colors.primary }} />
+                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full" style={{ background: primaryColor }} />
                   )}
                 </button>
               );
@@ -121,11 +122,11 @@ export default function AgendaMensualPage() {
 
         <div className="flex gap-4 mt-4 pt-4 border-t" style={{ borderColor: colors.borderLight }}>
           <div className="flex items-center gap-2 text-xs" style={{ color: colors.textSecondary }}>
-            <span className="w-3 h-3 rounded-full inline-block" style={{ background: colors.primary }} />
+            <span className="w-3 h-3 rounded-full inline-block" style={{ background: primaryColor }} />
             Hoy
           </div>
           <div className="flex items-center gap-2 text-xs" style={{ color: colors.textSecondary }}>
-            <span className="w-3 h-3 rounded-full inline-block border" style={{ background: colors.primaryFaded, borderColor: colors.primaryLight }} />
+            <span className="w-3 h-3 rounded-full inline-block border" style={{ background: primaryColorFaded, borderColor: primaryColorLight }} />
             Con reservas
           </div>
         </div>

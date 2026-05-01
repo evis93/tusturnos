@@ -21,6 +21,9 @@ export default function AgendaProfesionalPage() {
   const { profile } = useAuth();
   const { colors } = useTheme();
 
+  // Usa colores de la empresa si están disponibles
+  const primaryColor = profile?.colorPrimario || colors.primary;
+  const backgroundColor = profile?.colorBackground || colors.background;
   const hoy = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(hoy);
   const [reservas, setReservas] = useState<any[]>([]);
@@ -135,7 +138,7 @@ export default function AgendaProfesionalPage() {
   }, [fichasCount, reservas]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ backgroundColor }}>
       {/* Header */}
       <div className="px-6 pt-6 pb-4">
         <div className="flex items-center justify-between mb-1">
@@ -161,7 +164,7 @@ export default function AgendaProfesionalPage() {
                 onClick={() => setSelectedDate(d.fecha)}
                 className="flex flex-col items-center px-3 py-2 rounded-xl transition-all text-center flex-1 max-w-[64px]"
                 style={{
-                  background: d.fecha === selectedDate ? colors.primary : 'transparent',
+                  background: d.fecha === selectedDate ? primaryColor : 'transparent',
                   color: d.fecha === selectedDate ? '#fff' : colors.text,
                 }}
               >
@@ -195,7 +198,7 @@ export default function AgendaProfesionalPage() {
       <div className="flex-1 overflow-auto px-6 pb-6">
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: colors.primary }} />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
           </div>
         ) : (
           <div className="space-y-1">
@@ -240,7 +243,7 @@ export default function AgendaProfesionalPage() {
                           <div className="flex gap-2 flex-wrap justify-end">
                             <button
                               className="flex items-center gap-1 text-xs px-3 py-1 rounded-lg"
-                              style={{ background: colors.primaryFaded, color: colors.primary }}
+                              style={{ background: colors.primaryFaded, color: primaryColor }}
                               onClick={e => { e.stopPropagation(); setFichaModal({ open: true, reserva }); }}
                             >
                               <ClipboardList size={13} />

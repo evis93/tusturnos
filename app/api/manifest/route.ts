@@ -88,6 +88,21 @@ export async function GET(request: NextRequest) {
   const bgColor = branding?.color_background ?? '#f8fbff';
   const startUrl = '/';
 
+  // Resolver logo: preferir URL válida de Supabase Storage, fallback a /logos/
+  const resolveLogoUrl = (logoUrl: string | null | undefined): string => {
+    if (logoUrl && logoUrl.startsWith('http')) {
+      return logoUrl; // URL externa (Supabase Storage)
+    }
+    // Fallback a imagen local, usando nombre como hints para elegir la correcta
+    if (branding?.nombre) {
+      const lower = branding.nombre.toLowerCase();
+      if (lower.includes('monalisa')) return '/logos/Logo-corporeo-monalisa.png';
+      if (lower.includes('arte urbano') || lower.includes('arte-urbano') || lower.includes('arturbano'))
+        return '/logos/logo_palabra_arte_urbano.png';
+    }
+    return '/logos/logoturnos.png';
+  };
+
   const manifest = {
     name: appName,
     short_name: shortName,
@@ -99,25 +114,12 @@ export async function GET(request: NextRequest) {
     background_color: bgColor,
     lang: 'es',
     icons: [
-      // Si la empresa tiene logo_url en Supabase Storage, se usa directamente.
-      // Si no, se usan los íconos genéricos de Mensana.
-      ...(branding?.logo_url
-        ? [
-            {
-              src: branding.logo_url,
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'any maskable',
-            },
-          ]
-        : [
-            {
-              src: '/images/logoturnos.png',
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'any maskable',
-            },
-          ]),
+      {
+        src: resolveLogoUrl(branding?.logo_url),
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any maskable',
+      },
     ],
     screenshots: [],
     categories: ['health', 'lifestyle'],

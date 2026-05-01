@@ -79,6 +79,11 @@ export default function Sidebar() {
   const nav = getNavByRol(profile?.rol ?? null);
   const mostrarSucursales = sucursales.length > 0 && (profile?.rol === 'admin' || profile?.rol === 'superadmin' || profile?.rol === 'profesional');
 
+  // Usa colores de la empresa (profile) si están disponibles, sino de ThemeContext
+  const primaryColor = profile?.colorPrimario || colors.primary;
+  const backgroundColor = profile?.colorBackground || colors.background;
+  const logoFromProfile = profile?.logoUrl || logoUrl;
+
   return (
     <aside
       className="flex flex-col w-60 min-h-screen border-r border-gray-200 bg-white shadow-sm"
@@ -89,9 +94,9 @@ export default function Sidebar() {
         className="flex flex-col items-center gap-2 px-5 py-5 border-b"
         style={{ borderColor: colors.border }}
       >
-        {logoUrl && !logoFailed ? (
+        {logoFromProfile && !logoFailed ? (
           <img
-            src={logoUrl}
+            src={logoFromProfile}
             alt="logo"
             className="h-12 w-auto max-w-[140px] object-contain"
             onError={() => setLogoFailed(true)}
@@ -99,7 +104,7 @@ export default function Sidebar() {
         ) : (
           <div
             className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold text-lg"
-            style={{ background: colors.primary }}
+            style={{ background: primaryColor }}
           >
             {empresaNombre?.charAt(0)?.toUpperCase() || 'M'}
           </div>
@@ -122,7 +127,7 @@ export default function Sidebar() {
                 onClick={e => { e.stopPropagation(); setSucursalOpen(o => !o); }}
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition text-left"
               >
-                <MapPin size={14} style={{ color: colors.primary }} className="flex-shrink-0" />
+                <MapPin size={14} style={{ color: primaryColor }} className="flex-shrink-0" />
                 <span className="flex-1 text-xs font-medium truncate" style={{ color: colors.text }}>
                   {sucursalActiva?.nombre || 'Seleccionar sucursal'}
                 </span>
@@ -143,11 +148,11 @@ export default function Sidebar() {
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-gray-50 transition"
                       style={{
                         fontWeight: sucursalActiva?.id === s.id ? 600 : 400,
-                        color: sucursalActiva?.id === s.id ? colors.primary : colors.text,
+                        color: sucursalActiva?.id === s.id ? primaryColor : colors.text,
                       }}
                     >
                       {sucursalActiva?.id === s.id && (
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: colors.primary }} />
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: primaryColor }} />
                       )}
                       <span className={sucursalActiva?.id === s.id ? '' : 'ml-3.5'}>{s.nombre}</span>
                     </button>
@@ -183,7 +188,7 @@ export default function Sidebar() {
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                 isActive ? 'text-white' : 'text-gray-600 hover:bg-gray-100'
               )}
-              style={isActive ? { background: colors.primary, color: colors.headerText || '#fff' } : {}}
+              style={isActive ? { background: primaryColor, color: colors.headerText || '#fff' } : {}}
             >
               {item.icon}
               {item.label}
@@ -200,7 +205,7 @@ export default function Sidebar() {
         <div className="flex items-center gap-3">
           <div
             className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-            style={{ background: colors.primaryDark }}
+            style={{ background: profile?.colorSecundario || colors.primaryDark }}
           >
             {profile?.nombre_completo?.charAt(0)?.toUpperCase() || 'U'}
           </div>

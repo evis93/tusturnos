@@ -6,7 +6,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import DashboardLayout from '@/src/components/layout/DashboardLayout';
 
 export default function ClienteLayout({ children }: { children: React.ReactNode }) {
-  const { profile, loading } = useAuth();
+  const { profile, loading, totalSucursales } = useAuth();
   const router = useRouter();
   const params = useParams();
   const brand = params.brand as string;
@@ -18,10 +18,12 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
       router.replace(`/${brand}/${subdominio}/auth/login`);
     } else if (profile.rol !== 'cliente') {
       router.replace(`/${brand}/${subdominio}`);
+    } else if ((totalSucursales ?? 0) > 1 && !profile.empresaId) {
+      router.replace(`/${brand}/${subdominio}/seleccionar-empresa`);
     }
-  }, [profile, loading, router, brand, subdominio]);
+  }, [profile, loading, totalSucursales, router, brand, subdominio]);
 
-  if (loading || !profile) {
+  if (loading || !profile || ((totalSucursales ?? 0) > 1 && !profile.empresaId)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
